@@ -17,7 +17,7 @@ import { sleep } from './lib/fs.ts'
 
 const provider = resolveEmbeddingProvider()
 const throttleMs = embedThrottleMs(provider)
-const batchSize = Number(process.env.EMBED_BATCH_SIZE ?? 64)
+const batchSize = Number(process.env.EMBED_BATCH_SIZE ?? 8)
 const pageSize = Number(process.env.EMBED_PAGE_SIZE ?? 1000)
 
 console.log(`Embedding provider: ${provider} (batch=${batchSize})`)

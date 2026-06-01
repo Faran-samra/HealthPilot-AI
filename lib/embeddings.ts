@@ -4,7 +4,7 @@ import { embeddingHttpHeaders } from './embedding-http.ts'
 
 export const EMBEDDING_DIM = 1024
 
-export type EmbeddingProvider = 'local' | 'http' | 'openai' | 'voyage'
+export type EmbeddingProvider = 'huggingface' | 'local' | 'http' | 'openai' | 'voyage'
 export type EmbeddingInputType = 'query' | 'document'
 
 function env(name: string): string | undefined {
@@ -15,13 +15,15 @@ function env(name: string): string | undefined {
 
 export function resolveEmbeddingProvider(): EmbeddingProvider {
   const explicit = env('EMBEDDING_PROVIDER')?.toLowerCase()
-  if (explicit === 'local' || explicit === 'http' || explicit === 'voyage' || explicit === 'openai') {
+  if (explicit === 'hf') return 'huggingface'
+  if (explicit === 'huggingface' || explicit === 'local' || explicit === 'http' || explicit === 'voyage' || explicit === 'openai') {
     return explicit
   }
+  if (env('HUGGINGFACE_API_KEY') || env('HF_TOKEN')) return 'huggingface'
   if (env('EMBEDDING_SERVICE_URL')) return 'http'
   if (env('VOYAGE_API_KEY')) return 'voyage'
   if (env('OPENAI_API_KEY')) return 'openai'
-  return 'local'
+  return 'huggingface'
 }
 
 export function embeddingModelFor(provider: EmbeddingProvider): string {
@@ -176,6 +178,17 @@ export async function embedTextsBatch(
   const provider = options?.provider ?? resolveEmbeddingProvider()
   const inputType = options?.inputType ?? 'document'
 
+  if (provider === 'huggingface') {
+    const { embedHfTexts } = await import('./embeddings-hf.ts')
+    const batchSize = options?.localBatchSize ?? 8
+    const out: number[][] = []
+    for (let i = 0; i < texts.length; i += batchSize) {
+      const slice = texts.slice(i, i + batchSize)
+      out.push(...(await embedHfTexts(slice)))
+      if (i + batchSize < texts.length) await sleep(300)
+    }
+    return out
+  }
   if (provider === 'local') {
     const { embedLocalBatch } = await import('./embeddings-local.ts')
     return embedLocalBatch(texts, options?.localBatchSize ?? 32)
@@ -207,10 +220,6 @@ export async function embedText(
 export async function embedQuery(text: string): Promise<number[] | null> {
   try {
     const provider = resolveEmbeddingProvider()
-    if (provider === 'local') {
-      const { embedLocalQuery } = await import('./embeddings-local.ts')
-      return await embedLocalQuery(text)
-    }
     if (provider === 'http') {
       return await embedViaHttp(text, 'query')
     }
@@ -225,6 +234,7 @@ export async function embedQuery(text: string): Promise<number[] | null> {
 /** Delay between API embed batches (not used for local). */
 export function embedThrottleMs(provider?: EmbeddingProvider): number {
   const p = provider ?? resolveEmbeddingProvider()
+  if (p === 'huggingface') return 400
   if (p === 'local' || p === 'http') return 0
   if (p === 'voyage') {
     const custom = env('VOYAGE_EMBED_DELAY_MS')
