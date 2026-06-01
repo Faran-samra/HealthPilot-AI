@@ -20,6 +20,12 @@ app = FastAPI(
 )
 
 
+@app.on_event("startup")
+def load_embedding_model() -> None:
+    """Preload model at boot so /health means ready and Railway healthcheck passes."""
+    encode_texts(["warmup"])
+
+
 class EmbedRequest(BaseModel):
     query: str | None = Field(None, description="Single query string for RAG retrieval")
     texts: list[str] | None = Field(None, description="Batch of document strings")

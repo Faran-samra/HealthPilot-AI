@@ -45,15 +45,25 @@ Railway gives a public HTTPS URL for Supabase Edge (no Fly.io billing required).
 
 ### Option A — Dashboard (recommended)
 
-1. Go to [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo** (or **Empty Project** + deploy from CLI).
-2. Set **Root Directory** to `services/embedding-api` (repo root is the app).
-3. Railway detects `Dockerfile` and `railway.json` automatically.
-4. **Variables** (service settings):
+1. Go to [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo**.
+2. **Root Directory:** `services/embedding-api`
+3. **Config-as-code:** Settings → add path `railway.toml` (forces **Dockerfile** build — do not use Railpack/Node).
+4. **Build → Builder:** must be **Dockerfile** (not Railpack). If you see `node@22` in build logs, the wrong builder is selected.
+5. **Variables:**
    - `EMBEDDING_API_KEY` = long random secret (required in prod)
-   - `PORT` is set by Railway automatically
-5. **Settings → Resources:** allocate **2 GB RAM** minimum (BGE + PyTorch).
-6. **Settings → Networking → Generate Domain** → copy URL, e.g. `https://healthpilot-embed-production.up.railway.app`
-7. Wait for deploy; open `https://YOUR-DOMAIN/health` — should return `"status": "ok"`.
+6. **Scale → Memory: 2 GB minimum** (1 GB will OOM on BGE-large and show “Application failed to respond”).
+7. **Networking → Public domain → Target port:** `8000` (must match `$PORT`; our image listens on Railway’s `PORT`).
+8. **Deploy → Healthcheck path:** `/health` (timeout 300s for first model load).
+9. Open `https://YOUR-DOMAIN/health` → `"status": "ok"`.
+
+### Fix “Application failed to respond” / 502
+
+| Cause | Fix |
+|-------|-----|
+| Railpack (Node) instead of Docker | Config-as-code `railway.toml`, builder = Dockerfile |
+| 1 GB RAM | Upgrade to **2 GB** in Scale |
+| Wrong port | Target port **8000**, app uses `$PORT` |
+| Build never finishes | Check deploy logs for OOM during `sentence-transformers` model load |
 
 ### Option B — CLI
 
