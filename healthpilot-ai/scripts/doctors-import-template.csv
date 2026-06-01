@@ -1,0 +1,2 @@
+full_name,specialty,specialty_slug,qualification,experience_years,hospital_name,address,city,city_slug,province,area,latitude,longitude,phone,whatsapp,consultation_fee,gender,accepts_online,pmdc_number,is_verified
+Dr. Example Ali,General Physician,general,MBBS,5,DHQ Hospital,Main Road,Gujranwala,gujranwala,Punjab,Civil Lines,32.1877,74.1945,+923009999001,+923009999001,800,male,false,PMDC-90001,true
