@@ -52,7 +52,7 @@ Railway gives a public HTTPS URL for Supabase Edge (no Fly.io billing required).
 5. **Variables:**
    - `EMBEDDING_API_KEY` = long random secret (required in prod)
 6. **Scale → Memory: 2 GB minimum** (1 GB will OOM on BGE-large and show “Application failed to respond”).
-7. **Networking → Public domain → Target port:** `8000` (must match `$PORT`; our image listens on Railway’s `PORT`).
+7. **Networking → Public domain → Target port:** must match deploy logs (`Uvicorn running on ... port XXXX`). Often **8080** or **8000** — set the same value here.
 8. **Deploy → Healthcheck path:** `/health` (timeout 300s for first model load).
 9. Open `https://YOUR-DOMAIN/health` → `"status": "ok"`.
 
