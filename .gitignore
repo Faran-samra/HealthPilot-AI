@@ -4,6 +4,7 @@
 !.env.example
 **/.env
 **/.env.local
+*.local
 
 # Dependencies
 node_modules/
@@ -14,19 +15,22 @@ node_modules/
 # Build
 dist/
 build/
+.vite/
 
 # NHS pipeline data (regenerate locally)
-healthpilot-ai/data/nhs/
+data/nhs/
 
-# ML model caches (do not commit — large downloads)
+# ML model caches (do not commit)
 **/.cache/
 **/onnx/
 local_cache/
-healthpilot-ai/local_cache/
 
 # Supabase CLI local state
 **/.temp/
-healthpilot-ai/supabase/.temp/
+supabase/.temp/
+
+# Legacy nested folder (removed)
+healthpilot-ai/
 
 # OS / IDE
 .DS_Store

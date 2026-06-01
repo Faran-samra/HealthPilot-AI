@@ -1,5 +1,5 @@
 /**
- * Load healthpilot-ai/.env into process.env for Node/tsx scripts.
+ * Load project .env into process.env for Node/tsx scripts.
  * Import first: import './load-env.ts' or import '../scripts/load-env.ts'
  */
 import { existsSync, readFileSync } from 'node:fs'

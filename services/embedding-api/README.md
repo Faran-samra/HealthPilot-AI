@@ -46,7 +46,7 @@ Railway gives a public HTTPS URL for Supabase Edge (no Fly.io billing required).
 ### Option A — Dashboard (recommended)
 
 1. Go to [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo** (or **Empty Project** + deploy from CLI).
-2. If using the monorepo, set **Root Directory** to `services/embedding-api`.
+2. Set **Root Directory** to `services/embedding-api` (repo root is the app).
 3. Railway detects `Dockerfile` and `railway.json` automatically.
 4. **Variables** (service settings):
    - `EMBEDDING_API_KEY` = long random secret (required in prod)
