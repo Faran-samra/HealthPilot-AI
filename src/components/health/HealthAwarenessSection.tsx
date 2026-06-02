@@ -40,7 +40,12 @@ export function HealthAwarenessSection() {
           ))}
         </div>
 
-        <div className="mt-8 text-center">
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Link to="/health-statistics">
+            <Button size="lg" variant="secondary">
+              {t('health.viewStatistics')}
+            </Button>
+          </Link>
           <Link to="/symptom-checker">
             <Button size="lg">{t('health.learnMore')}</Button>
           </Link>

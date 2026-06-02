@@ -6,7 +6,10 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# Use Dockerfile CMD so PORT matches Railway networking (do not hardcode 8080)
+# IMPORTANT: Do NOT set startCommand here or in the Railway dashboard.
+# A custom start like `uvicorn ... --port $PORT` passes the literal "$PORT"
+# (no shell expansion) and the app never binds correctly.
+# Port binding is handled by Dockerfile CMD: ${PORT:-8080}
 healthcheckPath = "/health"
 healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"

@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import type { SymptomAnalysisExtended } from '@/types/symptomChat'
-import { buildDoctorSearchUrl, type CareLocation } from '@/utils/locationUtils'
+import { buildDoctorSearchUrl, buildHealthcareFacilitiesUrl, type CareLocation } from '@/utils/locationUtils'
 
 interface SymptomActionCardsProps {
   analysis: SymptomAnalysisExtended
@@ -30,7 +30,7 @@ export function SymptomActionCards({ analysis, careLocation, area }: SymptomActi
     area: area ?? undefined,
     nearMe: useGps,
   })
-  const hospitalUrl = buildDoctorSearchUrl({
+  const hospitalUrl = buildHealthcareFacilitiesUrl({
     specialty: analysis.recommended_specialty_slug,
     city: citySlug,
     nearMe: useGps,
@@ -62,7 +62,7 @@ export function SymptomActionCards({ analysis, careLocation, area }: SymptomActi
       icon: isEmergency ? Siren : MapPin,
       title: isEmergency ? t('symptoms.actionEmergency') : t('symptoms.actionNearMe'),
       desc: isEmergency ? t('symptoms.actionEmergencyDesc') : t('symptoms.actionNearMeDesc'),
-      href: isEmergency ? '/health-info' : buildDoctorSearchUrl({ city: citySlug, nearMe: true }),
+      href: isEmergency ? '/health-info' : buildHealthcareFacilitiesUrl({ city: citySlug, nearMe: true }),
       primary: isEmergency,
       danger: isEmergency,
     },

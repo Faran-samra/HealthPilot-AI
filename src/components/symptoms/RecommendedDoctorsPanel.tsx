@@ -5,11 +5,11 @@ import { MapPin, Navigation } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { discoverLiveCare } from '@/services/liveCareDiscoveryService'
+import { discoverHealthcareFacilities } from '@/services/liveCareDiscoveryService'
 import type { DiscoveryDoctor } from '@/types/discovery'
 import type { SymptomAnalysisExtended } from '@/types/symptomChat'
 import type { CareLocation } from '@/utils/locationUtils'
-import { buildDoctorSearchUrl } from '@/utils/locationUtils'
+import { buildHealthcareFacilitiesUrl } from '@/utils/locationUtils'
 
 interface RecommendedDoctorsPanelProps {
   analysis: SymptomAnalysisExtended
@@ -35,7 +35,7 @@ export function RecommendedDoctorsPanel({
       setLoading(true)
       const loc = careLocation!
       try {
-        const { results } = await discoverLiveCare({
+        const { results } = await discoverHealthcareFacilities({
           city: loc.citySlug,
           cityLabel: loc.cityLabel,
           specialty: analysis.recommended_specialty_slug,
@@ -117,7 +117,7 @@ export function RecommendedDoctorsPanel({
         ))}
       </div>
       <Link
-        to={buildDoctorSearchUrl({
+        to={buildHealthcareFacilitiesUrl({
           specialty: analysis.recommended_specialty_slug,
           city: careLocation.citySlug,
           nearMe: careLocation.source === 'gps',

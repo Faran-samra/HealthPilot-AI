@@ -5,7 +5,12 @@
 
 const EMBEDDING_DIM = 1024
 
-const HF_API = 'https://api-inference.huggingface.co/pipeline/feature-extraction'
+const HF_INFERENCE_BASE =
+  env('HF_INFERENCE_BASE')?.replace(/\/$/, '') ?? 'https://router.huggingface.co/hf-inference'
+
+function hfFeatureExtractionUrl(model: string): string {
+  return `${HF_INFERENCE_BASE}/models/${model}/pipeline/feature-extraction`
+}
 
 function env(name: string): string | undefined {
   const d = (globalThis as { Deno?: { env: { get: (k: string) => string | undefined } } }).Deno
@@ -69,7 +74,7 @@ export async function embedHfTexts(texts: string[], maxRetries = 8): Promise<num
   if (!apiKey) throw new Error('HUGGINGFACE_API_KEY or HF_TOKEN required')
 
   const model = hfModel()
-  const url = `${HF_API}/${model}`
+  const url = hfFeatureExtractionUrl(model)
   const inputs = texts.map((t) => t.slice(0, 2000))
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {

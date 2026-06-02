@@ -21,7 +21,20 @@
     "nhs:embed": "tsx pipeline/nhs/6-embed-chunks.ts",
     "embed:serve": "tsx scripts/embed-server.ts",
     "nhs:sample": "tsx pipeline/nhs/1-fetch-sitemap.ts && tsx pipeline/nhs/2-scrape-conditions.ts --limit 5 && tsx pipeline/nhs/3-localize-pakistan.ts && tsx pipeline/nhs/4-build-chunks.ts",
-    "corpus:seed-pk": "tsx scripts/seed-pakistan-corpus.ts"
+    "corpus:seed-pk": "tsx scripts/seed-pakistan-corpus.ts",
+    "doctors:import": "tsx pipeline/doctors/import-csv.ts",
+    "doctors:harvest": "tsx pipeline/doctors/jobs/harvest-sitemaps.ts",
+    "doctors:fetch": "tsx pipeline/doctors/jobs/fetch-profiles.ts",
+    "doctors:review": "tsx pipeline/doctors/jobs/review-queue.ts",
+    "doctors:merge": "tsx pipeline/doctors/jobs/merge-publish.ts",
+    "doctors:pmdc-verify": "tsx pipeline/doctors/jobs/pmdc-verify.ts",
+    "doctors:repair-marham": "tsx pipeline/doctors/jobs/repair-marham.ts",
+    "doctors:repair-timings": "tsx pipeline/doctors/jobs/repair-marham.ts -- --all",
+    "doctors:clean-workplaces": "tsx pipeline/doctors/jobs/clean-workplaces.ts",
+    "doctors:backfill-locations": "tsx pipeline/doctors/jobs/backfill-locations.ts",
+    "doctors:backfill-cities": "tsx pipeline/doctors/jobs/backfill-cities.ts",
+    "doctors:backfill-gender": "tsx pipeline/doctors/jobs/backfill-gender.ts",
+    "doctors:purge-seed": "tsx pipeline/doctors/jobs/purge-seed-doctors.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

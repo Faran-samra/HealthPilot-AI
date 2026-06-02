@@ -348,9 +348,13 @@ function overpassToFacility(
 
 function applyFilters(
   results: LiveFacility[],
-  params: { specialty?: string; hospital?: string; area?: string }
+  params: { specialty?: string; hospital?: string; area?: string; facilities_only?: boolean }
 ): LiveFacility[] {
   let filtered = results
+
+  if (params.facilities_only) {
+    filtered = filtered.filter((d) => d.facility_type !== 'doctor')
+  }
   if (params.specialty) {
     filtered = filtered.filter((d) =>
       !d.specialty_slug ||
@@ -385,7 +389,7 @@ Deno.serve(async (req) => {
     const body = await req.json()
     const {
       latitude, longitude, city, city_label, radius_km = 25,
-      specialty, area, hospital, use_gps,
+      specialty, area, hospital, use_gps, facilities_only = true,
     } = body
 
     const citySlug = typeof city === 'string' ? city.toLowerCase().trim() : null
@@ -438,7 +442,12 @@ Deno.serve(async (req) => {
       .map((f) => ({ ...f, ranking_score: computeScore(f, specialty ?? null, radius_km) }))
       .sort((a, b) => b.ranking_score - a.ranking_score || a.distance_km - b.distance_km)
 
-    const filtered = applyFilters(ranked, { specialty, hospital, area }).slice(0, 60)
+    const filtered = applyFilters(ranked, {
+      specialty,
+      hospital,
+      area,
+      facilities_only: Boolean(facilities_only),
+    }).slice(0, 60)
 
     return new Response(JSON.stringify({
       results: filtered,

@@ -68,7 +68,7 @@ export default function PlaceDetail() {
     return (
       <div className="mx-auto max-w-2xl px-4 py-20 text-center">
         <p className="text-muted-foreground">{t('doctors.placeNotFound')}</p>
-        <Link to="/doctors"><Button variant="link">{t('doctors.backToSearch')}</Button></Link>
+        <Link to="/healthcare-facilities"><Button variant="link">{t('doctors.backToFacilities')}</Button></Link>
       </div>
     )
   }
@@ -77,8 +77,8 @@ export default function PlaceDetail() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
-      <Link to="/doctors" className="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" />{t('doctors.backToSearch')}
+      <Link to="/healthcare-facilities" className="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="size-4" />{t('doctors.backToFacilities')}
       </Link>
 
       <div className="mb-4 flex flex-wrap gap-2">

@@ -174,7 +174,7 @@ export function SymptomChatInterface() {
   const stagedConfig = stagedSeverity ? SEVERITY_CONFIG[stagedSeverity] : null
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col px-4 py-6 md:py-10">
+    <div className="mx-auto flex w-full max-w-2xl flex-col px-4 py-4 pb-6 md:py-6">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-bold md:text-2xl">{t('symptoms.title')}</h1>
         <div className="flex gap-1 rounded-lg border p-1">
@@ -200,7 +200,7 @@ export function SymptomChatInterface() {
         </div>
       )}
 
-      <Card className="flex min-h-[420px] flex-1 flex-col overflow-hidden">
+      <Card className="flex min-h-[min(420px,calc(100dvh-13rem))] flex-col overflow-hidden">
         <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-4">
           {messages.map((msg) => (
             <ChatMessageBubble key={msg.id} message={msg} language={language} />

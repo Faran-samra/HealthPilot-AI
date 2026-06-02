@@ -19,9 +19,9 @@ export function MainLayout() {
   }, [profile?.preferred_language])
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-dvh flex-col">
       <Navbar />
-      <main className="flex-1">
+      <main className="w-full">
         <Outlet />
       </main>
       <Footer />

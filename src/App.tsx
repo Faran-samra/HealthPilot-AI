@@ -11,12 +11,14 @@ import Dashboard from '@/pages/Dashboard'
 import Profile from '@/pages/Profile'
 import SymptomChecker from '@/pages/SymptomChecker'
 import AnalysisResult from '@/pages/AnalysisResult'
-import DoctorSearch from '@/pages/DoctorSearch'
+import FindDoctorsDirectory from '@/pages/FindDoctorsDirectory'
+import HealthcareFacilities from '@/pages/HealthcareFacilities'
 import DoctorDetail from '@/pages/DoctorDetail'
 import PlaceDetail from '@/pages/PlaceDetail'
 import BookAppointment from '@/pages/BookAppointment'
 import Appointments from '@/pages/Appointments'
 import HealthAwareness from '@/pages/HealthAwareness'
+import HealthStatistics from '@/pages/HealthStatistics'
 
 function AppRoutes() {
   const initialize = useAuthStore((s) => s.initialize)
@@ -33,10 +35,12 @@ function AppRoutes() {
         <Route path="register" element={<Register />} />
         <Route path="symptom-checker" element={<SymptomChecker />} />
         <Route path="symptom-checker/results" element={<AnalysisResult />} />
-        <Route path="doctors" element={<DoctorSearch />} />
+        <Route path="doctors" element={<FindDoctorsDirectory />} />
+        <Route path="healthcare-facilities" element={<HealthcareFacilities />} />
         <Route path="doctors/:id" element={<DoctorDetail />} />
         <Route path="places/:id" element={<PlaceDetail />} />
         <Route path="health-info" element={<HealthAwareness />} />
+        <Route path="health-statistics" element={<HealthStatistics />} />
 
         <Route
           path="onboarding"
@@ -62,14 +66,7 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="doctors/:id/book"
-          element={
-            <ProtectedRoute>
-              <BookAppointment />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="doctors/:id/book" element={<BookAppointment />} />
         <Route
           path="appointments"
           element={

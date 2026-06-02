@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Globe, List, Map, MapPin, Navigation } from 'lucide-react'
+import { Building2, Globe, List, Map, MapPin, Navigation, Stethoscope } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -15,24 +16,20 @@ import {
 } from '@/components/ui/select'
 import { DoctorsMap } from '@/components/doctors/DoctorsMap'
 import { DiscoveryDoctorCard } from '@/components/doctors/DiscoveryDoctorCard'
-import { discoverLiveCare } from '@/services/liveCareDiscoveryService'
+import { discoverHealthcareFacilities } from '@/services/liveCareDiscoveryService'
 import { useAuthStore } from '@/store/authStore'
 import { useGeolocation } from '@/hooks/useGeolocation'
-import {
-  PAKISTAN_CITIES,
-  FAMOUS_HOSPITALS,
-  MEDICAL_SPECIALTIES,
-} from '@/utils/constants'
-import { resolveSearchLocation } from '@/utils/locationUtils'
+import { PAKISTAN_CITIES, FAMOUS_HOSPITALS, MEDICAL_SPECIALTIES } from '@/utils/constants'
+import { buildDoctorSearchUrl, resolveSearchLocation } from '@/utils/locationUtils'
 import type { DiscoveryDoctor, DiscoveryMeta } from '@/types/discovery'
 
-export default function DoctorSearch() {
+export default function HealthcareFacilities() {
   const { t } = useTranslation()
   const { profile } = useAuthStore()
   const { location, loading: locating, error: locationError, requestLocation, clearLocation } =
     useGeolocation()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [doctors, setDoctors] = useState<DiscoveryDoctor[]>([])
+  const [facilities, setFacilities] = useState<DiscoveryDoctor[]>([])
   const [meta, setMeta] = useState<DiscoveryMeta | null>(null)
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list')
@@ -52,9 +49,7 @@ export default function DoctorSearch() {
 
   useEffect(() => {
     setCity(resolved.citySlug)
-    if (resolved.area && !searchParams.get('area')) {
-      setArea(resolved.area)
-    }
+    if (resolved.area && !searchParams.get('area')) setArea(resolved.area)
   }, [resolved.citySlug, resolved.area, searchParams])
 
   useEffect(() => {
@@ -62,10 +57,10 @@ export default function DoctorSearch() {
   }, [useNearMe, location, locating, requestLocation])
 
   useEffect(() => {
-    async function loadDoctors() {
+    async function load() {
       setLoading(true)
       try {
-        const response = await discoverLiveCare({
+        const response = await discoverHealthcareFacilities({
           city,
           cityLabel: resolved.cityLabel,
           area: area.trim() || undefined,
@@ -75,10 +70,10 @@ export default function DoctorSearch() {
           longitude: useNearMe && location ? location.lng : undefined,
           radiusKm: 25,
         })
-        setDoctors(response.results)
+        setFacilities(response.results)
         setMeta(response.meta)
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Failed to load facilities')
+        toast.error(err instanceof Error ? err.message : t('facilities.loadError'))
       } finally {
         setLoading(false)
       }
@@ -88,15 +83,14 @@ export default function DoctorSearch() {
       if (!locating && locationError) setLoading(false)
       return
     }
-
-    loadDoctors()
+    load()
     setSearchParams({
       ...(city && !useNearMe && { city }),
       ...(area.trim() && !useNearMe && { area: area.trim() }),
       ...(specialty && { specialty }),
       ...(useNearMe && { nearMe: '1' }),
     })
-  }, [city, area, specialty, hospital, useNearMe, location, locating, locationError, setSearchParams, resolved.cityLabel])
+  }, [city, area, specialty, hospital, useNearMe, location, locating, locationError, setSearchParams, resolved.cityLabel, t])
 
   const toggleNearMe = () => {
     if (useNearMe) {
@@ -108,33 +102,50 @@ export default function DoctorSearch() {
     }
   }
 
-  const searchModeLabel = useNearMe
-    ? t('doctors.searchModeGpsLive', { city: resolved.cityLabel })
-    : t('doctors.searchModeCityLive', { city: resolved.cityLabel })
+  const doctorDirectoryUrl = buildDoctorSearchUrl({
+    specialty: specialty || undefined,
+    city,
+    area: area.trim() || undefined,
+    nearMe: useNearMe,
+  })
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold md:text-3xl">{t('doctors.title')}</h1>
-        <p className="text-muted-foreground">{t('doctors.subtitleLive')}</p>
+        <p className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+          <Building2 className="size-3.5" />
+          {t('facilities.badge')}
+        </p>
+        <h1 className="text-2xl font-bold md:text-3xl">{t('facilities.title')}</h1>
+        <p className="mt-2 max-w-2xl text-muted-foreground">{t('facilities.subtitle')}</p>
         <p className="mt-2 flex items-center gap-1.5 text-sm text-primary">
           <MapPin className="size-3.5" />
-          {searchModeLabel}
+          {useNearMe
+            ? t('facilities.searchModeGps', { city: resolved.cityLabel })
+            : t('facilities.searchModeCity', { city: resolved.cityLabel })}
         </p>
         {meta && !loading && (
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             <span className="flex items-center gap-1 rounded-full bg-muted px-2.5 py-1">
               <Globe className="size-3" />
-              {t('doctors.facilityCount', { count: meta.facility_count })}
+              {t('facilities.facilityCount', { count: meta.facility_count })}
             </span>
             <span className="rounded-full bg-muted px-2.5 py-1">
-              {t('doctors.resultsWithin', { km: meta.radius_km })}
-            </span>
-            <span className="rounded-full bg-primary/10 px-2.5 py-1 text-primary">
-              {t('doctors.liveDataSource')}
+              {t('facilities.resultsWithin', { km: meta.radius_km })}
             </span>
           </div>
         )}
+        <Card className="mt-4 border-primary/20 bg-primary/5">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
+            <span className="flex items-center gap-2">
+              <Stethoscope className="size-4 text-primary" />
+              {t('facilities.lookingForDoctor')}
+            </span>
+            <Link to={doctorDirectoryUrl}>
+              <Button size="sm">{t('nav.findDoctors')}</Button>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -148,52 +159,47 @@ export default function DoctorSearch() {
             ))}
           </SelectContent>
         </Select>
-
         <Input
           className="w-40"
-          placeholder={t('doctors.areaPlaceholder')}
+          placeholder={t('facilities.areaPlaceholder')}
           value={area}
           onChange={(e) => setArea(e.target.value)}
           disabled={useNearMe}
         />
-
         {cityHospitals.length > 0 && (
           <Select value={hospital} onValueChange={(v) => setHospital(v ?? '')}>
             <SelectTrigger className="w-52">
-              <SelectValue placeholder={t('doctors.anyHospital')} />
+              <SelectValue placeholder={t('facilities.anyHospital')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">{t('doctors.anyHospital')}</SelectItem>
+              <SelectItem value="">{t('facilities.anyHospital')}</SelectItem>
               {cityHospitals.map((h) => (
                 <SelectItem key={h} value={h}>{h}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         )}
-
         <Select value={specialty} onValueChange={(v) => setSpecialty(v ?? '')}>
           <SelectTrigger className="w-48">
-            <SelectValue placeholder={t('doctors.allSpecialties')} />
+            <SelectValue placeholder={t('facilities.relatedSpecialty')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">{t('doctors.allSpecialties')}</SelectItem>
+            <SelectItem value="">{t('facilities.anySpecialty')}</SelectItem>
             {MEDICAL_SPECIALTIES.map((s) => (
               <SelectItem key={s.slug} value={s.slug}>{s.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-
         <Button variant={useNearMe ? 'default' : 'outline'} size="sm" className="gap-1.5" onClick={toggleNearMe} disabled={locating}>
           <Navigation className="size-3.5" />
-          {locating ? t('doctors.locating') : useNearMe ? t('doctors.nearMeOn') : t('doctors.nearMe')}
+          {locating ? t('facilities.locating') : useNearMe ? t('facilities.nearMeOn') : t('facilities.nearMe')}
         </Button>
-
         <div className="ms-auto flex rounded-lg border p-1">
           <Button size="sm" variant={viewMode === 'list' ? 'default' : 'ghost'} className="gap-1" onClick={() => setViewMode('list')}>
-            <List className="size-3.5" />{t('doctors.list')}
+            <List className="size-3.5" />{t('facilities.list')}
           </Button>
           <Button size="sm" variant={viewMode === 'map' ? 'default' : 'ghost'} className="gap-1" onClick={() => setViewMode('map')}>
-            <Map className="size-3.5" />{t('doctors.map')}
+            <Map className="size-3.5" />{t('facilities.map')}
           </Button>
         </div>
       </div>
@@ -204,31 +210,27 @@ export default function DoctorSearch() {
         <div className="flex justify-center py-20">
           <div className="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         </div>
-      ) : doctors.length === 0 ? (
+      ) : facilities.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            <p>{t('doctors.noResultsInCity', { city: resolved.cityLabel })}</p>
-            <p className="mt-2 text-sm">{t('doctors.noResultsLiveHint')}</p>
+            <p>{t('facilities.noResults', { city: resolved.cityLabel })}</p>
+            <Link to={doctorDirectoryUrl} className="mt-4 inline-block">
+              <Button variant="outline">{t('nav.findDoctors')}</Button>
+            </Link>
           </CardContent>
         </Card>
       ) : viewMode === 'map' ? (
-        <DoctorsMap doctors={doctors} city={city} userLocation={useNearMe ? location : null} />
+        <DoctorsMap doctors={facilities} city={city} userLocation={useNearMe ? location : null} />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {doctors.map((doctor) => (
-            <DiscoveryDoctorCard
-              key={doctor.id}
-              doctor={doctor}
-              userLocation={useNearMe ? location : null}
-            />
+          {facilities.map((f) => (
+            <DiscoveryDoctorCard key={f.id} doctor={f} userLocation={useNearMe ? location : null} />
           ))}
         </div>
       )}
 
-      {!loading && doctors.length > 0 && (
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          {t('doctors.osmAttribution')}
-        </p>
+      {!loading && facilities.length > 0 && (
+        <p className="mt-6 text-center text-xs text-muted-foreground">{t('facilities.osmAttribution')}</p>
       )}
     </div>
   )

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CollapsibleSection } from '@/components/ui/collapsible-section'
 import { SymptomActionCards } from '@/components/symptoms/SymptomActionCards'
 import { RecommendedDoctorsPanel } from '@/components/symptoms/RecommendedDoctorsPanel'
+import { RecommendedDirectoryDoctorsPanel } from '@/components/symptoms/RecommendedDirectoryDoctorsPanel'
 import { AnalysisFeedback } from '@/components/symptoms/AnalysisFeedback'
 import type { SymptomAnalysisExtended } from '@/types/symptomChat'
 import type { CareLocation } from '@/utils/locationUtils'
@@ -84,6 +85,12 @@ export function AnalysisResultPanel({
       </Card>
 
       <SymptomActionCards analysis={analysis} careLocation={careLocation} area={area} />
+
+      <RecommendedDirectoryDoctorsPanel
+        analysis={analysis}
+        careLocation={careLocation}
+        locationLoading={locationLoading}
+      />
 
       <RecommendedDoctorsPanel
         analysis={analysis}

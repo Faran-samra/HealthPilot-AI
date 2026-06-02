@@ -81,6 +81,16 @@ export interface Database {
           pmdc_number: string | null
           accepts_online: boolean
           gender: 'male' | 'female' | null
+          clinic_name: string | null
+          source: string | null
+          source_url: string | null
+          verification_status: string | null
+          publication_status: string | null
+          source_count: number | null
+          claimed_by: string | null
+          claimed_at: string | null
+          updated_at: string | null
+          profile_details: Record<string, unknown> | null
           created_at: string
         }
         Insert: {
@@ -112,6 +122,12 @@ export interface Database {
           pmdc_number?: string | null
           accepts_online?: boolean
           gender?: 'male' | 'female' | null
+          clinic_name?: string | null
+          source?: string | null
+          source_url?: string | null
+          verification_status?: string | null
+          profile_details?: Record<string, unknown> | null
+          updated_at?: string | null
           created_at?: string
         }
         Update: {
@@ -143,6 +159,15 @@ export interface Database {
           pmdc_number?: string | null
           accepts_online?: boolean
           gender?: 'male' | 'female' | null
+          clinic_name?: string | null
+          source?: string | null
+          source_url?: string | null
+          verification_status?: string | null
+          publication_status?: string | null
+          source_count?: number | null
+          claimed_by?: string | null
+          claimed_at?: string | null
+          updated_at?: string | null
           created_at?: string
         }
         Relationships: []
@@ -216,7 +241,9 @@ export interface Database {
       appointments: {
         Row: {
           id: string
-          patient_id: string
+          patient_id: string | null
+          guest_name: string | null
+          guest_phone: string | null
           doctor_id: string
           session_id: string | null
           appointment_date: string
@@ -232,7 +259,9 @@ export interface Database {
         }
         Insert: {
           id?: string
-          patient_id: string
+          patient_id?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
           doctor_id: string
           session_id?: string | null
           appointment_date: string
@@ -248,7 +277,9 @@ export interface Database {
         }
         Update: {
           id?: string
-          patient_id?: string
+          patient_id?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
           doctor_id?: string
           session_id?: string | null
           appointment_date?: string
@@ -338,9 +369,65 @@ export interface Database {
           specialty_filter?: string | null
           city_slug_filter?: string | null
           area_filter?: string | null
+          name_filter?: string | null
+          gender_filter?: string | null
+          max_fee_filter?: number | null
+          min_fee_filter?: number | null
+          language_filter?: string | null
           result_limit?: number
         }
         Returns: Doctor[]
+      }
+      search_doctors_directory: {
+        Args: {
+          city_slug_filter?: string | null
+          specialty_filter?: string | null
+          area_filter?: string | null
+          name_filter?: string | null
+          hospital_filter?: string | null
+          gender_filter?: string | null
+          max_fee_filter?: number | null
+          min_fee_filter?: number | null
+          language_filter?: string | null
+          result_limit?: number
+          result_offset?: number
+        }
+        Returns: Doctor[]
+      }
+      submit_doctor_claim: {
+        Args: {
+          p_doctor_id: string
+          p_pmdc_number?: string | null
+          p_phone?: string | null
+          p_evidence?: Record<string, unknown>
+        }
+        Returns: string
+      }
+      queue_pmdc_verification: {
+        Args: {
+          p_doctor_id?: string | null
+          p_import_raw_id?: string | null
+          p_pmdc_number?: string | null
+          p_full_name?: string | null
+          p_father_name?: string | null
+        }
+        Returns: string
+      }
+      recompute_doctor_verification: {
+        Args: { p_doctor_id: string }
+        Returns: undefined
+      }
+      create_guest_appointment: {
+        Args: {
+          p_doctor_id: string
+          p_guest_name: string
+          p_guest_phone: string
+          p_appointment_date: string
+          p_appointment_time: string
+          p_patient_notes?: string | null
+          p_consultation_fee?: number | null
+        }
+        Returns: Appointment
       }
     }
     Enums: Record<string, never>

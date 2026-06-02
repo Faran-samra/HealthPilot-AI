@@ -1,137 +1,225 @@
 # HealthPilot AI
 
-Bilingual (English / Urdu) healthcare navigation for Pakistan. Describe symptoms, get AI-guided specialty recommendations, and find **live** nearby hospitals and clinics from OpenStreetMap.
+**Bilingual healthcare navigation for Pakistan** — AI symptom guidance, a verified doctor directory (Marham-sourced), and live nearby hospitals from OpenStreetMap.
 
-> **Not a medical diagnosis tool.** Always consult a qualified clinician for care decisions.
+> **Not a medical diagnosis tool.** AI output is informational only. Always consult a qualified clinician.
 
-## Features
+---
 
-- **Conversational symptom checker** — multi-turn Claude chat with structured tool output (`ask_follow_up`, `submit_symptom_analysis`)
-- **Client-side emergency triage** — instant severity hints before the LLM responds
-- **Live facility discovery** — Overpass + Nominatim via Supabase Edge Functions (no static doctor database for search)
-- **GPS-first location** — facility results ranked near you or your selected city
-- **Bilingual UX** — English and Urdu (i18n)
-- **Auth & dashboard** — Supabase Auth, symptom history, appointments (legacy seeded doctors)
+## At a glance (30 seconds)
+
+| | |
+|---|---|
+| **Problem** | Patients struggle to choose the right specialty and find trustworthy doctors across Pakistan’s cities. |
+| **Solution** | Conversational AI routes symptoms → specialty, then surfaces **real doctors** (scraped + normalized from Marham) and **live OSM facilities** near the user. |
+| **Users** | Patients (EN / Urdu), optional login for history & appointments |
+| **Scale** | 500+ Marham doctor profiles ingested; nationwide city coverage; PostGIS radius search |
+| **AI** | Anthropic Claude with **tool calling** (structured JSON), model fallback chain, RAG-ready medical chunks |
+| **Stack** | React 19 · TypeScript · Supabase · Edge Functions · Leaflet/OSM |
+
+**Live routes:** Symptom Checker · Find Doctors · Nearby Facilities · Book Appointment (guest-friendly) · Health Statistics (WHO Pakistan)
+
+---
+
+## System architecture
+
+```mermaid
+flowchart TB
+  subgraph Client["React 19 + Vite"]
+    SC[Symptom Chat]
+    FD[Find Doctors]
+    HF[Healthcare Facilities]
+    BK[Book Appointment]
+  end
+
+  subgraph Edge["Supabase Edge Functions"]
+    SCF[symptom-chat]
+    DISC[discover-doctors]
+    WHO[who-pakistan-stats]
+    SHARED["_shared: Claude, schemas, RAG, safety"]
+  end
+
+  subgraph Data["PostgreSQL + PostGIS"]
+    DOC[doctors + profile_details]
+    IMP[doctor_import_raw]
+    SESS[symptom_sessions]
+    RAG[medical_chunks / nhs_conditions]
+    TRACE[ai_traces]
+  end
+
+  subgraph Ingest["TypeScript pipelines"]
+    MAR[Marham harvest → fetch → merge]
+    NHS[NHS → Pakistan RAG chunks]
+  end
+
+  subgraph External["External APIs"]
+    CLAUDE[Anthropic Claude]
+    OSM[OpenStreetMap Overpass]
+    HF[Hugging Face embeddings]
+  end
+
+  SC --> SCF
+  SCF --> SHARED --> CLAUDE
+  SCF --> RAG
+  FD --> DOC
+  HF --> DISC --> OSM
+  MAR --> IMP --> DOC
+  NHS --> RAG
+```
+
+---
+
+## What this repo demonstrates
+
+### 1. AI symptom navigation
+- Multi-turn **Claude tool calling** (`ask_follow_up` → `submit_symptom_analysis`)
+- **Client-side emergency triage** (&lt;1ms) before LLM latency
+- Zod validation, severity normalization, bilingual summaries (EN / Urdu)
+- **Observability:** `ai_traces` (model, tokens, latency, `trace_id`)
+- **Eval harness:** `eval/run-eval.ts` + `eval/cases.jsonl`
+- **RAG path:** NHS conditions + Pakistan corpus → `medical_chunks` (pgvector)
+
+### 2. Doctor directory (production-style data pipeline)
+- **Marham connector:** sitemap harvest → HTML parse → normalized rows
+- Fields: specialty, fee, hospital, area/city, practice timings, services, WhatsApp
+- **Review queue** → merge → `publication_status = published`
+- **PostGIS** search: `search_doctors_directory`, `doctors_within_radius`
+- **Data quality jobs:** repair-marham, backfill-cities, backfill-locations, purge-seed
+
+### 3. Live facility discovery (OSM)
+- No static hospital list — **Overpass + Nominatim** at query time
+- GPS-first ranking; specialty-aware scoring
+- Separate from doctor directory (clinics/hospitals on the map)
+
+### 4. Engineering quality
+- TypeScript end-to-end (app + pipelines + tests)
+- **Vitest** unit tests (triage, specialty filter, geo, Marham HTML extract)
+- **GitHub Actions:** lint → test → build
+- i18n (English / Urdu), accessible UI (shadcn/ui + Tailwind)
+
+---
 
 ## Tech stack
 
 | Layer | Technology |
-|-------|------------|
-| Frontend | React 19, TypeScript, Vite, Tailwind, shadcn/ui, Zustand |
-| Backend | Supabase (Auth, Postgres, Edge Functions, Realtime) |
-| AI | Anthropic Claude (tool calling, model fallback chain) |
-| Maps | Leaflet + OpenStreetMap (no Google Maps API key) |
+|--------|------------|
+| Frontend | React 19, TypeScript, Vite 8, Tailwind 4, shadcn/ui, Zustand, react-i18next |
+| Backend | Supabase Auth, Postgres, PostGIS, Realtime, Edge Functions (Deno) |
+| AI | Anthropic Claude (Sonnet → Haiku fallback), tool use, optional RAG |
+| Embeddings | BAAI/bge-large-en-v1.5 (Hugging Face or FastAPI sidecar) |
+| Maps | Leaflet + OpenStreetMap (no Google Maps billing) |
+| Data ingest | `tsx` CLI pipelines, rate-limited HTTP, Cheerio HTML parse |
+
+---
+
+## Repository map
+
+```
+HealthPilot-AI/
+├── src/                      # React application
+│   ├── pages/                # Symptom checker, doctors, facilities, booking
+│   ├── services/             # Supabase + discovery API clients
+│   ├── components/           # UI, maps, doctor cards, chat
+│   └── utils/                # Triage, geo, Marham display helpers
+├── supabase/
+│   ├── functions/            # Edge: symptom-chat, discover-doctors, …
+│   └── migrations/           # Schema, PostGIS, directory, RAG (001–014)
+├── pipeline/
+│   ├── doctors/              # Marham / multi-source doctor ingest
+│   └── nhs/                  # NHS scrape → localize → embed
+├── eval/                     # LLM evaluation dataset + runner
+├── services/embedding-api/   # FastAPI embedding service (Railway)
+├── docs/                     # Architecture, API, AI, engineering notes
+└── .github/workflows/ci.yml
+```
+
+---
 
 ## Quick start
 
-### Prerequisites
-
-- Node.js 20+
-- [Supabase CLI](https://supabase.com/docs/guides/cli) (for edge deploy)
-- Anthropic API key (Supabase secret)
-
-### 1. Clone and install
+**Prerequisites:** Node.js 20+, Supabase project, Anthropic API key (edge secret)
 
 ```bash
 git clone https://github.com/Faran-samra/HealthPilot-AI.git
 cd HealthPilot-AI
 npm install
+cp .env.example .env   # add VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY
+npm run dev            # http://localhost:5173
 ```
 
-### 2. Environment
-
-Copy `.env.example` to `.env`:
-
-```bash
-cp .env.example .env
-```
-
-Fill in:
-
-```env
-VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
-```
-
-### 3. Supabase secrets (edge functions)
-
-```bash
-npx supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
-npx supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-```
-
-Apply migrations (SQL Editor or CLI):
+**Supabase (one-time):**
 
 ```bash
 npx supabase db push
+npx supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+npx supabase functions deploy symptom-chat
+npx supabase functions deploy discover-doctors
+npx supabase functions deploy who-pakistan-stats
 ```
 
-Deploy edge functions:
+Full setup: [docs/SETUP.md](./docs/SETUP.md)
+
+---
+
+## Doctor data pipeline (Marham)
 
 ```bash
-npx supabase functions deploy symptom-chat --project-ref YOUR_REF
-npx supabase functions deploy analyze-symptoms --project-ref YOUR_REF
-npx supabase functions deploy discover-doctors --project-ref YOUR_REF
-npx supabase functions deploy get-facility --project-ref YOUR_REF
+npm run doctors:harvest -- --source marham --limit 2000
+npm run doctors:fetch -- --source marham --limit 100    # repeat
+npm run doctors:merge -- --auto-approve --publish --limit 500
+npm run doctors:repair-marham -- --all --limit 500      # refresh profiles
 ```
 
-### 4. Run locally
+Details: [docs/DOCTOR_DIRECTORY.md](./docs/DOCTOR_DIRECTORY.md) · [pipeline/doctors/README.md](./pipeline/doctors/README.md)
 
-```bash
-npm run dev
-```
-
-Open `http://localhost:5173`
+---
 
 ## Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Vite dev server |
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Local dev server |
 | `npm run build` | Production build |
+| `npm run test` | Vitest (app + pipeline unit tests) |
 | `npm run lint` | ESLint |
-| `npm run test` | Vitest unit tests |
-| `npm run eval` | LLM eval harness (requires env vars) |
-| `npm run embed:serve` | Dev-only Node embedding server |
-| `npm run nhs:embed` | Embed medical chunks (local BGE) |
+| `npm run eval` | LLM eval vs `analyze-symptoms` / chat |
+| `npm run doctors:*` | Directory harvest, fetch, merge, repair |
+| `npm run nhs:*` | NHS → RAG ingest pipeline |
 
-### Running evals
-
-```bash
-export VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-export VITE_SUPABASE_ANON_KEY=your-anon-key
-npm run eval
-```
-
-See [docs/eval-results.md](./docs/eval-results.md) and [eval/cases.jsonl](./eval/cases.jsonl).
+---
 
 ## Documentation
 
-- [Architecture](./docs/architecture.md)
-- [API contracts (edge functions)](./docs/api-contracts.md)
-- [Safety & disclaimers](./docs/safety.md)
-- [NHS → Pakistan RAG pipeline](./docs/nhs-pipeline.md)
-- [CV / LLMOps implementation plan](./docs/plans/HealthPilot_AI_CV_Implementation_Plan.md)
-- [Embedding API (Railway)](./services/embedding-api/README.md)
+| Doc | Audience |
+|-----|----------|
+| [docs/README.md](./docs/README.md) | Documentation index |
+| [docs/architecture.md](./docs/architecture.md) | System design & flows |
+| [docs/AI_SYSTEMS.md](./docs/AI_SYSTEMS.md) | Claude, tools, RAG, evals, safety |
+| [docs/DOCTOR_DIRECTORY.md](./docs/DOCTOR_DIRECTORY.md) | Ingest pipeline & data model |
+| [docs/ENGINEERING.md](./docs/ENGINEERING.md) | Key technical decisions |
+| [docs/api-contracts.md](./docs/api-contracts.md) | Edge function API reference |
+| [docs/safety.md](./docs/safety.md) | Disclaimers & safety rules |
 
-## Project structure
+---
 
-```
-├── src/                    # React app
-├── supabase/
-│   ├── functions/          # Edge functions + _shared
-│   └── migrations/
-├── services/embedding-api/   # FastAPI BGE service (Railway)
-├── eval/                   # LLM evaluation dataset & runner
-├── docs/
-├── pipeline/nhs/           # NHS scrape → RAG ingest
-└── corpus/                 # Pakistan guideline sources
-```
+## Security & compliance notes
 
-## Deploy embedding API (Railway)
+- API keys live in **Supabase secrets** only (never shipped to the browser)
+- Row Level Security on user-owned tables
+- AI outputs include mandatory medical disclaimers
+- Doctor data: public Marham pages with `source` + `source_url` attribution
+- Service role key used only in server-side scripts and edge functions
 
-Set **Root Directory** to `services/embedding-api` when connecting this GitHub repo.
+---
+
+## Author
+
+Built as a portfolio-grade full-stack + AI systems project for Pakistan healthcare access.
+
+**Repository:** [github.com/Faran-samra/HealthPilot-AI](https://github.com/Faran-samra/HealthPilot-AI)
+
+---
 
 ## License
 
-Private / portfolio — update as needed.
+Private / portfolio — contact author for usage terms.

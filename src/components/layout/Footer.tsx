@@ -2,54 +2,46 @@ import { Link } from 'react-router-dom'
 import { Activity } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+const FOOTER_LINKS = [
+  { to: '/symptom-checker', key: 'nav.symptomChecker' },
+  { to: '/doctors', key: 'nav.findDoctors' },
+  { to: '/healthcare-facilities', key: 'nav.healthcareFacilities' },
+  { to: '/health-info', key: 'nav.healthInfo' },
+  { to: '/health-statistics', key: 'nav.healthStatistics' },
+] as const
+
 export function Footer() {
   const { t } = useTranslation()
+  const year = new Date().getFullYear()
 
   return (
-    <footer className="border-t bg-muted/30">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 md:grid-cols-3">
-        <div>
-          <div className="mb-3 flex items-center gap-2 font-semibold text-primary">
-            <Activity className="size-5" />
-            {t('common.appName')}
+    <footer className="mt-auto shrink-0 border-t bg-muted/20">
+      <div className="mx-auto max-w-6xl px-4 py-3 sm:py-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+            <Activity className="size-4 shrink-0" aria-hidden />
+            <span>{t('common.appName')}</span>
           </div>
-          <p className="text-sm text-muted-foreground">{t('footer.tagline')}</p>
+
+          <nav
+            className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground sm:justify-end"
+            aria-label={t('footer.quickLinks')}
+          >
+            {FOOTER_LINKS.map(({ to, key }) => (
+              <Link key={to} to={to} className="hover:text-foreground whitespace-nowrap">
+                {t(key)}
+              </Link>
+            ))}
+          </nav>
         </div>
 
-        <div>
-          <h3 className="mb-3 text-sm font-semibold">{t('footer.quickLinks')}</h3>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>
-              <Link to="/symptom-checker" className="hover:text-foreground">
-                {t('nav.symptomChecker')}
-              </Link>
-            </li>
-            <li>
-              <Link to="/doctors" className="hover:text-foreground">
-                {t('nav.findDoctors')}
-              </Link>
-            </li>
-            <li>
-              <Link to="/health-info" className="hover:text-foreground">
-                {t('nav.healthInfo')}
-              </Link>
-            </li>
-            <li>
-              <Link to="/register" className="hover:text-foreground">
-                {t('common.register')}
-              </Link>
-            </li>
-          </ul>
-        </div>
+        <p className="mt-2 text-[11px] leading-snug text-muted-foreground/90 sm:max-w-3xl">
+          {t('footer.disclaimerShort')}
+        </p>
 
-        <div>
-          <h3 className="mb-3 text-sm font-semibold">{t('footer.disclaimerTitle')}</h3>
-          <p className="text-xs leading-relaxed text-muted-foreground">{t('footer.disclaimer')}</p>
-        </div>
-      </div>
-
-      <div className="border-t py-4 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} {t('common.appName')} — {t('footer.copyright')}
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          © {year} {t('common.appName')} — {t('footer.copyright')}
+        </p>
       </div>
     </footer>
   )

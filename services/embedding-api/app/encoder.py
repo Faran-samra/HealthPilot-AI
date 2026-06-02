@@ -11,7 +11,9 @@ import httpx
 MODEL_ID = os.getenv("HF_EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5")
 EMBEDDING_DIM = 1024
 MAX_CHARS = 2000
-HF_API = "https://api-inference.huggingface.co/pipeline/feature-extraction"
+HF_INFERENCE_BASE = os.getenv(
+    "HF_INFERENCE_BASE", "https://router.huggingface.co/hf-inference"
+).rstrip("/")
 
 
 def _api_key() -> str:
@@ -58,7 +60,7 @@ def encode_texts(texts: list[str]) -> list[list[float]]:
     if not texts:
         return []
 
-    url = f"{HF_API}/{MODEL_ID}"
+    url = f"{HF_INFERENCE_BASE}/models/{MODEL_ID}/pipeline/feature-extraction"
     headers = {"Authorization": f"Bearer {_api_key()}"}
     inputs = [t[:MAX_CHARS] for t in texts]
 

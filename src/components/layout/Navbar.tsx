@@ -16,7 +16,9 @@ export function Navbar() {
   const navLinks = [
     { href: '/symptom-checker', label: t('nav.symptomChecker') },
     { href: '/doctors', label: t('nav.findDoctors') },
+    { href: '/healthcare-facilities', label: t('nav.healthcareFacilities') },
     { href: '/health-info', label: t('nav.healthInfo') },
+    { href: '/health-statistics', label: t('nav.healthStatistics') },
     { href: '/appointments', label: t('nav.appointments'), auth: true },
     { href: '/dashboard', label: t('nav.dashboard'), auth: true },
   ]
@@ -48,7 +50,7 @@ export function Navbar() {
 
         <div className="hidden items-center gap-2 md:flex">
           <LanguageSwitcher />
-          {user ? (
+          {user && (
             <>
               <Link to="/profile">
                 <Button variant="ghost" size="sm">
@@ -58,17 +60,6 @@ export function Navbar() {
               <Button variant="outline" size="sm" onClick={() => signOut()}>
                 {t('common.signOut')}
               </Button>
-            </>
-          ) : (
-            <>
-              <Link to="/login">
-                <Button variant="ghost" size="sm">
-                  {t('common.login')}
-                </Button>
-              </Link>
-              <Link to="/register">
-                <Button size="sm">{t('common.getStarted')}</Button>
-              </Link>
             </>
           )}
         </div>
@@ -99,31 +90,18 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
-            <div className="mt-2 flex flex-col gap-2 border-t pt-3">
-              {user ? (
-                <>
-                  <Link to="/profile" onClick={() => setMobileOpen(false)}>
-                    <Button variant="ghost" className="w-full justify-start">
-                      {t('common.profile')}
-                    </Button>
-                  </Link>
-                  <Button variant="outline" onClick={() => signOut()}>
-                    {t('common.signOut')}
+            {user && (
+              <div className="mt-2 flex flex-col gap-2 border-t pt-3">
+                <Link to="/profile" onClick={() => setMobileOpen(false)}>
+                  <Button variant="ghost" className="w-full justify-start">
+                    {t('common.profile')}
                   </Button>
-                </>
-              ) : (
-                <>
-                  <Link to="/login" onClick={() => setMobileOpen(false)}>
-                    <Button variant="ghost" className="w-full">
-                      {t('common.login')}
-                    </Button>
-                  </Link>
-                  <Link to="/register" onClick={() => setMobileOpen(false)}>
-                    <Button className="w-full">{t('common.getStarted')}</Button>
-                  </Link>
-                </>
-              )}
-            </div>
+                </Link>
+                <Button variant="outline" onClick={() => signOut()}>
+                  {t('common.signOut')}
+                </Button>
+              </div>
+            )}
           </nav>
         </div>
       )}

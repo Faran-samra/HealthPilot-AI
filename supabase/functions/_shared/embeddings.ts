@@ -2,10 +2,27 @@
 
 export const EMBEDDING_DIM = 1024
 
-const HF_API = 'https://api-inference.huggingface.co/pipeline/feature-extraction'
+/** Legacy api-inference.huggingface.co returns 410 — use router (Inference Providers). */
+const HF_INFERENCE_BASE =
+  Deno.env.get('HF_INFERENCE_BASE')?.replace(/\/$/, '') ??
+  'https://router.huggingface.co/hf-inference'
+
+function hfFeatureExtractionUrl(model: string): string {
+  return `${HF_INFERENCE_BASE}/models/${model}/pipeline/feature-extraction`
+}
 
 function env(name: string): string | undefined {
   return Deno.env.get(name)
+}
+
+/** Set RAG_DEBUG=true on the project to log embed/retrieval steps (no vectors or PHI). */
+export function isRagDebug(): boolean {
+  const v = env('RAG_DEBUG')?.toLowerCase()
+  return v === '1' || v === 'true' || v === 'yes'
+}
+
+export function ragDebug(...parts: unknown[]): void {
+  if (isRagDebug()) console.log('[RAG]', ...parts)
 }
 
 function hfKey(): string | undefined {
@@ -46,27 +63,53 @@ function toSentenceEmbedding(raw: unknown): number[] {
   throw new Error('Unexpected HF shape')
 }
 
-async function embedHfQuery(text: string): Promise<number[] | null> {
+async function embedHfQuery(text: string): Promise<{ vec: number[] | null; reason?: string; status?: number }> {
   const apiKey = hfKey()
-  if (!apiKey) return null
-  const url = `${HF_API}/${hfModel()}`
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ inputs: text.slice(0, 2000) }),
-  })
-  if (!res.ok) {
-    console.warn('HF embed failed:', res.status, await res.text().catch(() => ''))
-    return null
+  if (!apiKey) {
+    console.warn('HF embed skipped: HUGGINGFACE_API_KEY not set')
+    return { vec: null, reason: 'no_api_key' }
   }
-  const data = await res.json()
-  const vec = Array.isArray(data) && Array.isArray(data[0]) && typeof data[0][0] !== 'number'
-    ? toSentenceEmbedding(data[0])
-    : toSentenceEmbedding(data)
-  return vec.length === EMBEDDING_DIM ? vec : null
+
+  const url = hfFeatureExtractionUrl(hfModel())
+  const body = JSON.stringify({ inputs: text.slice(0, 2000) })
+
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body,
+    })
+
+    if (res.ok) {
+      const data = await res.json()
+      const vec =
+        Array.isArray(data) && Array.isArray(data[0]) && typeof data[0][0] !== 'number'
+          ? toSentenceEmbedding(data[0])
+          : toSentenceEmbedding(data)
+      if (vec.length !== EMBEDDING_DIM) {
+        console.warn('HF embed bad dimensions:', vec.length)
+        return { vec: null, reason: 'bad_dimensions' }
+      }
+      return { vec }
+    }
+
+    const errText = await res.text().catch(() => '')
+    const loading = res.status === 503 || errText.toLowerCase().includes('loading')
+    if (loading && attempt < 5) {
+      const waitMs = Math.min(30_000, 5000 * (attempt + 1))
+      ragDebug('embed:retry', { status: res.status, attempt: attempt + 1, waitMs })
+      await new Promise((r) => setTimeout(r, waitMs))
+      continue
+    }
+
+    console.warn('HF embed failed:', res.status, errText.slice(0, 300))
+    return { vec: null, reason: 'hf_http_error', status: res.status }
+  }
+
+  return { vec: null, reason: 'hf_retries_exhausted' }
 }
 
 async function embedHttpQuery(text: string): Promise<number[] | null> {
@@ -84,14 +127,34 @@ async function embedHttpQuery(text: string): Promise<number[] | null> {
 }
 
 export async function embedQuery(text: string): Promise<number[] | null> {
+  const preview = text.trim().slice(0, 120)
+  const provider =
+    env('EMBEDDING_PROVIDER') === 'http' || (!hfKey() && env('EMBEDDING_SERVICE_URL')) ? 'http' : 'huggingface'
+  ragDebug('embed:start', { provider, model: hfModel(), queryChars: text.length, preview })
+
+  const t0 = Date.now()
   try {
     const useHttp = env('EMBEDDING_PROVIDER') === 'http' || (!hfKey() && env('EMBEDDING_SERVICE_URL'))
+    let vec: number[] | null = null
+    let failReason: string | undefined
     if (useHttp && env('EMBEDDING_SERVICE_URL')) {
-      return await embedHttpQuery(text)
+      vec = await embedHttpQuery(text)
+      if (!vec) failReason = 'http_embed_failed'
+    } else {
+      const hf = await embedHfQuery(text)
+      vec = hf.vec
+      failReason = hf.reason
+      if (hf.status) failReason = `${failReason ?? 'hf_error'}:${hf.status}`
     }
-    return await embedHfQuery(text)
+    if (vec) {
+      ragDebug('embed:ok', { provider, dimensions: vec.length, ms: Date.now() - t0 })
+    } else {
+      ragDebug('embed:empty', { provider, ms: Date.now() - t0, reason: failReason })
+    }
+    return vec
   } catch (e) {
     console.warn('embedQuery failed:', e)
+    ragDebug('embed:error', { provider, ms: Date.now() - t0, error: String(e) })
     return null
   }
 }

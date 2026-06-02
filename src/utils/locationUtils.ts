@@ -33,7 +33,7 @@ export function getCityCenterCoords(citySlug?: string | null): { lat: number; ln
   return CITY_CENTERS[slug] ?? CITY_CENTERS.lahore
 }
 
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const toRad = (d: number) => (d * Math.PI) / 180
   const dLat = toRad(lat2 - lat1)
   const dLng = toRad(lng2 - lng1)
@@ -117,6 +117,27 @@ export function buildDoctorSearchUrl(options: {
   specialty?: string
   city?: string
   area?: string
+  name?: string
+  nearMe?: boolean
+  maxFee?: number
+  femaleOnly?: boolean
+}): string {
+  const params = new URLSearchParams()
+  if (options.specialty) params.set('specialty', options.specialty)
+  if (options.city) params.set('city', normalizeCitySlug(options.city) ?? options.city)
+  if (options.area) params.set('area', options.area)
+  if (options.name) params.set('name', options.name)
+  if (options.nearMe) params.set('nearMe', '1')
+  if (options.maxFee) params.set('maxFee', String(options.maxFee))
+  if (options.femaleOnly) params.set('female', '1')
+  const query = params.toString()
+  return query ? `/doctors?${query}` : '/doctors'
+}
+
+export function buildHealthcareFacilitiesUrl(options: {
+  specialty?: string
+  city?: string
+  area?: string
   nearMe?: boolean
 }): string {
   const params = new URLSearchParams()
@@ -125,5 +146,5 @@ export function buildDoctorSearchUrl(options: {
   if (options.area) params.set('area', options.area)
   if (options.nearMe) params.set('nearMe', '1')
   const query = params.toString()
-  return query ? `/doctors?${query}` : '/doctors'
+  return query ? `/healthcare-facilities?${query}` : '/healthcare-facilities'
 }

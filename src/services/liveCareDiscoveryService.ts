@@ -12,14 +12,13 @@ export interface LiveCareSearchParams {
   latitude?: number
   longitude?: number
   radiusKm?: number
+  /** Exclude individual practitioner nodes (default true for facilities page). */
+  facilitiesOnly?: boolean
 }
 
-/**
- * Discover real hospitals, clinics, and doctors via OpenStreetMap (live data).
- * No dependency on manually seeded Supabase doctor records.
- */
-export async function discoverLiveCare(
-  params: LiveCareSearchParams
+async function invokeDiscovery(
+  params: LiveCareSearchParams,
+  facilitiesOnly: boolean
 ): Promise<DiscoveryResponse> {
   const citySlug = normalizeCitySlug(params.city) ?? 'lahore'
   const cityLabel = params.cityLabel ?? getCityLabel(citySlug)
@@ -42,6 +41,7 @@ export async function discoverLiveCare(
         specialty: params.specialty ?? null,
         area: params.area ?? null,
         hospital: params.hospital ?? null,
+        facilities_only: facilitiesOnly,
       },
     }
   )
@@ -53,6 +53,20 @@ export async function discoverLiveCare(
   }
 
   return data
+}
+
+/** Hospitals, clinics, labs, and healthcare facilities (not individual doctors). */
+export async function discoverHealthcareFacilities(
+  params: LiveCareSearchParams
+): Promise<DiscoveryResponse> {
+  return invokeDiscovery(params, params.facilitiesOnly !== false)
+}
+
+/** @deprecated Prefer discoverHealthcareFacilities for OSM places */
+export async function discoverLiveCare(
+  params: LiveCareSearchParams
+): Promise<DiscoveryResponse> {
+  return invokeDiscovery(params, params.facilitiesOnly ?? false)
 }
 
 /** Fetch a single OSM facility by HealthPilot place id (e.g. osm-node-5255424740). */

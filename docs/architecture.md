@@ -1,14 +1,17 @@
-# HealthPilot AI — Architecture
+# Architecture
+
+> **Start here:** [README](../README.md) (overview) · [AI_SYSTEMS.md](./AI_SYSTEMS.md) · [DOCTOR_DIRECTORY.md](./DOCTOR_DIRECTORY.md)
 
 ## System overview
 
 ```mermaid
 flowchart TB
   subgraph Client["React + Vite"]
-    UI[Symptom Chat UI]
-    Triage[Client Triage + Pattern Cache]
-    Loc[useCareLocation GPS]
-    FB[Analysis Feedback]
+    UI[Symptom Chat]
+    Triage[Client Triage]
+    Doctors[Find Doctors]
+    OSM[Healthcare Facilities]
+    Book[Book Appointment]
   end
 
   subgraph Edge["Supabase Edge Functions"]
@@ -16,98 +19,91 @@ flowchart TB
     AS[analyze-symptoms]
     DD[discover-doctors]
     GF[get-facility]
-    SH[_shared: models, schemas, safety, observability]
+    WHO[who-pakistan-stats]
+    SH[_shared]
   end
 
-  subgraph Data["Supabase Postgres"]
-    PROF[profiles]
+  subgraph Data["Postgres + PostGIS"]
+    DOC[doctors]
+    IMP[doctor_import_raw]
     SESS[symptom_sessions]
     TRACE[ai_traces]
-    FEED[analysis_feedback]
+    RAG[medical_chunks]
   end
 
-  subgraph External["External"]
-    CLAUDE[Anthropic Claude API]
-    OSM[OpenStreetMap Overpass + Nominatim]
+  subgraph Pipeline["Ingest"]
+    MAR[Marham CLI]
+    NHS[NHS RAG]
   end
 
-  UI --> Triage
-  UI --> SC
-  Triage --> SC
-  SC --> SH
-  SH --> CLAUDE
-  SH --> TRACE
-  FB --> FEED
-  UI --> DD
-  Loc --> DD
-  DD --> OSM
-  GF --> OSM
-  SC --> SESS
+  UI --> Triage --> SC
+  SC --> SH --> TRACE
+  Doctors --> DOC
+  OSM --> DD
+  MAR --> IMP --> DOC
+  NHS --> RAG
+  SH --> RAG
 ```
 
-## Core user flows
+## Core flows
 
-### 1. Symptom checker (primary AI flow)
+### Symptom checker
 
-1. User opens `/symptom-checker` and describes symptoms (EN or UR).
-2. **Client triage** (`symptomTriage.ts`) runs in &lt;1ms — emergency keywords, pattern cache.
-3. **`symptom-chat`** edge function:
-   - Follow-up turns: tool `ask_follow_up` (one question + `quick_severity`).
-   - Final turn: tool `submit_symptom_analysis` (structured JSON).
-4. **Validation** (`_shared/schemas.ts` + `safety.ts`) normalizes output; retries on schema failure.
-5. **Observability** logs `trace_id`, model, tokens, latency to `ai_traces`.
-6. Results panel shows specialty, severity, red flags, Urdu summary.
-7. **`discover-doctors`** loads OSM facilities using **GPS coordinates first**, then city center.
+1. User describes symptoms (EN / UR) on `/symptom-checker`.
+2. Client triage (`symptomTriage.ts`) — emergency keywords, pattern cache.
+3. `symptom-chat` edge function — tools: `ask_follow_up` or `submit_symptom_analysis`.
+4. Results link to **directory doctors** + **OSM facilities** near GPS/city.
 
-### 2. Doctor / facility search
+### Find doctors (Marham directory)
 
-1. User opens `/doctors` with city filters or **Near Me** (GPS).
-2. `liveCareDiscoveryService` calls `discover-doctors` with lat/lng + specialty.
-3. Edge queries Overpass + Nominatim, dedupes, ranks by distance + specialty + contact.
-4. List or map view; OSM places open at `/places/:id` (`get-facility` for deep links).
+1. Published rows in `doctors` (`source = marham`, `publication_status = published`).
+2. Search via `search_doctors_directory` or city listing + client filters.
+3. Profile: fee, hospital, practice timings, services; book by weekday slots.
+
+### Nearby facilities (OSM)
+
+1. `discover-doctors` with `facilities_only` or default hybrid mode.
+2. Overpass + Nominatim — live data, not the doctor table.
 
 ## Design decisions
 
 | Decision | Rationale |
 |----------|-----------|
-| **Tool calling vs raw JSON** | Reliable structured fields; avoids `JSON.parse` failures (especially Urdu). |
-| **Model fallback chain** | `claude-sonnet-4-6` → `sonnet-4-5` → `haiku-4-5` for resilience. |
-| **OSM vs seeded doctor DB** | Live, nationwide coverage; no manual curation for discovery. |
-| **GPS before profile city** | Profile city was often wrong (e.g. Karachi while user in Lahore). |
-| **Client + server triage** | Fast emergency UX; server still validates severity in analysis. |
-| **Edge functions as AI gateway** | Hides API keys; central logging, rate limits, RAG injection. |
+| Tool calling vs raw JSON | Reliable structured analysis (especially Urdu) |
+| Model fallback chain | Resilience when a Claude model is unavailable |
+| Separate doctor DB vs OSM | Profiles vs live map amenities — different UX |
+| GPS before profile city | Accurate Near Me and facility ranking |
+| Staging import table | Safe Marham ingest with review before publish |
+| Edge AI gateway | Secrets, traces, RAG in one place |
+
+Full trade-off discussion: [ENGINEERING.md](./ENGINEERING.md).
 
 ## Edge functions
 
 | Function | Role |
 |----------|------|
-| `symptom-chat` | Multi-turn symptom conversation + final analysis |
-| `analyze-symptoms` | Single-shot analysis (evals + legacy path) |
-| `discover-doctors` | Radius search on OSM healthcare amenities |
-| `get-facility` | Single OSM place lookup by `osm_type` + `osm_id` |
+| `symptom-chat` | Multi-turn symptom conversation |
+| `analyze-symptoms` | Single-shot analysis (evals) |
+| `discover-doctors` | OSM facility / hybrid discovery |
+| `get-facility` | Single OSM place detail |
+| `who-pakistan-stats` | WHO Pakistan health statistics cache |
 
-See [api-contracts.md](./api-contracts.md).
+API shapes: [api-contracts.md](./api-contracts.md).
 
-## Data model (key tables)
+## Data model (high level)
 
-- `profiles` — user city, area, language, demographics
-- `symptom_sessions` — stored AI analysis JSON
-- `ai_traces` — LLM request metadata (no raw PHI by default)
-- `analysis_feedback` — thumbs up/down linked to `trace_id`
-- `doctors` / `appointments` — legacy in-app booking for seeded doctors only
+- `profiles`, `symptom_sessions`, `ai_traces`, `analysis_feedback`
+- `doctors`, `doctor_import_raw`, `doctor_source_records`, `appointments`
+- `medical_chunks`, `nhs_conditions` (RAG)
+- `who_pakistan_stats_cache`
+
+Migrations: `supabase/migrations/001`–`014`.
 
 ## Security
 
-- Anthropic key only in Supabase secrets (never in frontend).
-- Anon key in Vite env; RLS on user tables.
-- Medical disclaimer on all AI outputs.
-- Service role used only in edge functions for trace inserts.
+- Anthropic + service keys in Supabase secrets only
+- RLS on user tables
+- Medical disclaimers on AI surfaces
+- Marham attribution via `source_url`
 
-## Planned extensions (CV roadmap)
-
-- RAG over `corpus/pakistan-guidelines` + pgvector
-- Offline eval harness (`eval/run-eval.ts`)
-- CI + Vitest for triage/ranking utilities
-- Optional vision triage (dermatology routing)
-
-See [HealthPilot_AI_CV_Implementation_Plan.md](../../HealthPilot_AI_CV_Implementation_Plan.md).
+See [safety.md](./safety.md).

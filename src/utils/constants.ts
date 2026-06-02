@@ -136,5 +136,8 @@ export const FAMOUS_HOSPITALS: Record<string, string[]> = {
 /** Default search radius tiers (km) for GPS-based discovery. */
 export const SEARCH_RADIUS_KM = [15, 30, 50] as const
 
-/** Max doctors returned per search query. */
+/** Max doctors for GPS radius / compact panels (symptom checker, etc.). */
 export const DOCTOR_SEARCH_LIMIT = 50
+
+/** Max doctors loaded for a full city directory listing (paginated fetch). */
+export const DOCTOR_CITY_LISTING_MAX = 2000
