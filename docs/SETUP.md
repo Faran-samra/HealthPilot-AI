@@ -100,6 +100,8 @@ npm run build
 
 Deploy `dist/` to Vercel, Netlify, or Supabase Hosting. Set the same `VITE_*` env vars at build time.
 
+**Production demo:** [https://health-pilot-ai-three.vercel.app/](https://health-pilot-ai-three.vercel.app/) (Vercel). Use root `vercel.json` for SPA routing on refresh.
+
 ## Embedding API (Railway)
 
 See [services/embedding-api/README.md](../services/embedding-api/README.md). Set Railway **root directory** to `services/embedding-api`.

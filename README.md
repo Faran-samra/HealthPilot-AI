@@ -2,14 +2,18 @@
 
 **Bilingual healthcare navigation for Pakistan** — AI symptom guidance, a nationwide doctor directory, live nearby hospitals from OpenStreetMap, and WHO public health statistics.
 
+[![Live Demo](https://img.shields.io/badge/Live_Demo-health--pilot--ai--three.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://health-pilot-ai-three.vercel.app/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20Edge-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com/)
 [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?logo=githubactions&logoColor=white)](./.github/workflows/ci.yml)
 
-> **Medical disclaimer:** HealthPilot AI provides **informational guidance only**, not a diagnosis or prescription. Always consult a qualified clinician for personal medical decisions. In emergencies, call **Rescue 1122** or **Edhi 115**.
+| | |
+|---|---|
+| **Live app** | **[health-pilot-ai-three.vercel.app](https://health-pilot-ai-three.vercel.app/)** |
+| **Source code** | [github.com/Faran-samra/HealthPilot-AI](https://github.com/Faran-samra/HealthPilot-AI) |
 
-**Repository:** [github.com/Faran-samra/HealthPilot-AI](https://github.com/Faran-samra/HealthPilot-AI)
+> **Medical disclaimer:** HealthPilot AI provides **informational guidance only**, not a diagnosis or prescription. Always consult a qualified clinician for personal medical decisions. In emergencies, call **Rescue 1122** or **Edhi 115**.
 
 ---
 
@@ -376,7 +380,8 @@ Details: [docs/safety.md](./docs/safety.md)
 
 Built as a **portfolio-grade full-stack + AI systems** project focused on healthcare access in Pakistan.
 
-**GitHub:** [@Faran-samra / HealthPilot-AI](https://github.com/Faran-samra/HealthPilot-AI)
+- **Live demo:** [https://health-pilot-ai-three.vercel.app/](https://health-pilot-ai-three.vercel.app/)
+- **GitHub:** [@Faran-samra / HealthPilot-AI](https://github.com/Faran-samra/HealthPilot-AI)
 
 ---
 
