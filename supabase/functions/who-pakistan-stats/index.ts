@@ -7,7 +7,9 @@ import {
   CACHE_TTL_MS,
   fetchIndicatorBundle,
   KPI_INDICATORS,
-  LEADING_CAUSE_INDICATORS,
+  WHO_CAUSES_SOURCE_YEAR,
+  WHO_LEADING_CAUSES_GHE_2021,
+  WHO_PAKISTAN_POPULATION_FALLBACK,
   type GhoLatestValue,
   type IndicatorDef,
 } from '../_shared/who-gho.ts'
@@ -51,6 +53,7 @@ interface WhoPakistanPayload {
   fromCache: boolean
   kpis: KpiItem[]
   leadingCauses: CauseItem[]
+  causesSourceYear: number
   attribution: {
     source: string
     license: string
@@ -94,29 +97,31 @@ function toKpi(def: IndicatorDef, raw: GhoLatestValue | null): KpiItem | null {
 }
 
 async function buildPayload(): Promise<WhoPakistanPayload> {
-  const [kpiMap, causeMap] = await Promise.all([
-    fetchIndicatorBundle(KPI_INDICATORS),
-    fetchIndicatorBundle(LEADING_CAUSE_INDICATORS),
-  ])
+  const kpiMap = await fetchIndicatorBundle(KPI_INDICATORS)
 
-  const kpis = KPI_INDICATORS.map((d) => toKpi(d, kpiMap.get(d.key) ?? null)).filter(
+  let kpis = KPI_INDICATORS.map((d) => toKpi(d, kpiMap.get(d.key) ?? null)).filter(
     (k): k is KpiItem => k != null,
   )
 
-  const leadingCauses: CauseItem[] = LEADING_CAUSE_INDICATORS.map((def) => {
-    const raw = causeMap.get(def.key)
-    if (!raw) return null
-    return {
-      key: def.key,
-      label: def.label,
-      year: raw.year,
-      deathsPer100k: raw.value,
-      displayValue: cleanDisplay(raw.display, raw.value),
-    }
-  })
-    .filter((c): c is CauseItem => c != null)
-    .sort((a, b) => b.deathsPer100k - a.deathsPer100k)
-    .slice(0, 8)
+  if (!kpis.some((k) => k.key === 'population')) {
+    const fb = WHO_PAKISTAN_POPULATION_FALLBACK
+    kpis.push({
+      key: fb.key,
+      label: fb.label,
+      unit: fb.unit,
+      year: fb.year,
+      value: fb.value,
+      displayValue: fb.displayValue,
+    })
+  }
+
+  const leadingCauses: CauseItem[] = WHO_LEADING_CAUSES_GHE_2021.map((c) => ({
+    key: c.key,
+    label: c.label,
+    year: c.year,
+    deathsPer100k: c.deathsPer100k,
+    displayValue: String(c.deathsPer100k),
+  }))
 
   const now = new Date()
   const expiresAt = new Date(now.getTime() + CACHE_TTL_MS)
@@ -134,6 +139,7 @@ async function buildPayload(): Promise<WhoPakistanPayload> {
     fromCache: false,
     kpis,
     leadingCauses,
+    causesSourceYear: WHO_CAUSES_SOURCE_YEAR,
     attribution: {
       source: 'World Health Organization (WHO)',
       license: 'CC BY-NC-SA 3.0 IGO',

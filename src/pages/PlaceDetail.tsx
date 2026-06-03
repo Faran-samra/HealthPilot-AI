@@ -8,22 +8,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DoctorLocationMap } from '@/components/doctors/DoctorLocationMap'
 import { useGeolocation } from '@/hooks/useGeolocation'
 import { fetchLiveFacilityById } from '@/services/liveCareDiscoveryService'
-import type { DiscoveryDoctor, FacilityType } from '@/types/discovery'
+import type { DiscoveryDoctor } from '@/types/discovery'
+import {
+  facilityBadgeDisplay,
+  formatFacilityDetailAddress,
+  formatFacilityShortLocation,
+} from '@/utils/facilityDisplay'
 import { getDirectionsUrl, getOpenStreetMapUrl } from '@/utils/mapUtils'
 
-function facilityTypeKey(type: FacilityType): string {
-  const keys: Record<FacilityType, string> = {
-    hospital: 'doctors.facilityHospital',
-    clinic: 'doctors.facilityClinic',
-    doctor: 'doctors.facilityDoctor',
-    health_centre: 'doctors.facilityHealthCentre',
-    other: 'doctors.facilityOther',
-  }
-  return keys[type] ?? keys.other
-}
-
 export default function PlaceDetail() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
   const { location: userLocation } = useGeolocation()
@@ -74,6 +68,10 @@ export default function PlaceDetail() {
   }
 
   const point = { lat: place.latitude, lng: place.longitude }
+  const lang = i18n.language
+  const { typeLabel, specialtyLabel } = facilityBadgeDisplay(place, t)
+  const shortLocation = formatFacilityShortLocation(place, lang)
+  const detailAddress = formatFacilityDetailAddress(place, lang)
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
@@ -82,8 +80,8 @@ export default function PlaceDetail() {
       </Link>
 
       <div className="mb-4 flex flex-wrap gap-2">
-        <Badge>{place.specialty}</Badge>
-        <Badge variant="outline">{t(facilityTypeKey(place.facility_type))}</Badge>
+        <Badge variant="outline">{typeLabel}</Badge>
+        {specialtyLabel && <Badge variant="secondary">{specialtyLabel}</Badge>}
         <Badge variant="secondary">{t('doctors.osmListing')}</Badge>
       </div>
 
@@ -99,8 +97,11 @@ export default function PlaceDetail() {
         <CardContent className="space-y-3">
           <p className="flex items-start gap-2 text-sm">
             <MapPin className="mt-0.5 size-4 shrink-0" />
-            {[place.address, place.area, place.city].filter(Boolean).join(', ')}
+            {shortLocation || detailAddress || t('facilities.mapPinOnly')}
           </p>
+          {detailAddress && detailAddress !== shortLocation && (
+            <p className="text-xs leading-relaxed text-muted-foreground">{detailAddress}</p>
+          )}
           {place.distance_km > 0 && (
             <p className="text-sm font-medium text-primary">
               {place.distance_km.toFixed(1)} km {t('doctors.fromYou')}

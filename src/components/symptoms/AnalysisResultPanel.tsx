@@ -2,7 +2,6 @@ import { useTranslation } from 'react-i18next'
 import { AlertTriangle, CheckCircle, Siren, Stethoscope } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { CollapsibleSection } from '@/components/ui/collapsible-section'
 import { SymptomActionCards } from '@/components/symptoms/SymptomActionCards'
 import { RecommendedDoctorsPanel } from '@/components/symptoms/RecommendedDoctorsPanel'
 import { RecommendedDirectoryDoctorsPanel } from '@/components/symptoms/RecommendedDirectoryDoctorsPanel'
@@ -84,6 +83,77 @@ export function AnalysisResultPanel({
         </CardContent>
       </Card>
 
+      {showFullDetails && analysis.explanation && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">{t('symptoms.explanation')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm leading-relaxed">{analysis.explanation}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {showFullDetails && analysis.possible_conditions.length > 0 && (
+        <Card className="border-yellow-200 bg-yellow-50/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <AlertTriangle className="size-4 text-yellow-600" />
+              {t('symptoms.possibleConcerns')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2 text-sm">
+              {analysis.possible_conditions.map((condition) => (
+                <li key={condition} className="flex items-center gap-2">
+                  <span className="size-1.5 shrink-0 rounded-full bg-yellow-600" />
+                  {condition}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {showFullDetails && analysis.first_aid_tips.length > 0 && (
+        <Card className="border-green-200 bg-green-50/40">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CheckCircle className="size-4 text-green-600" />
+              {t('symptoms.firstAidTips')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2 text-sm">
+              {analysis.first_aid_tips.map((tip) => (
+                <li key={tip} className="flex items-start gap-2">
+                  <CheckCircle className="mt-0.5 size-4 shrink-0 text-green-600" />
+                  {tip}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {showFullDetails && analysis.red_flags.length > 0 && (
+        <Card className="border-orange-200 bg-orange-50/60">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <AlertTriangle className="size-4 text-orange-700" />
+              {t('symptoms.redFlags')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-1.5 text-sm text-orange-900">
+              {analysis.red_flags.map((flag) => (
+                <li key={flag}>• {flag}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
       <SymptomActionCards analysis={analysis} careLocation={careLocation} area={area} />
 
       <RecommendedDirectoryDoctorsPanel
@@ -99,63 +169,6 @@ export function AnalysisResultPanel({
       />
 
       <AnalysisFeedback traceId={traceId} sessionId={sessionId} />
-
-      {showFullDetails && (
-        <>
-          {analysis.possible_conditions.length > 0 && (
-            <CollapsibleSection
-              title={t('symptoms.possibleConcerns')}
-              icon={<AlertTriangle className="size-4 text-yellow-600" />}
-            >
-              <ul className="space-y-1">
-                {analysis.possible_conditions.map((condition) => (
-                  <li key={condition} className="flex items-center gap-2">
-                    <span className="size-1.5 rounded-full bg-yellow-600" />
-                    {condition}
-                  </li>
-                ))}
-              </ul>
-            </CollapsibleSection>
-          )}
-
-          <CollapsibleSection
-            title={t('symptoms.explanation')}
-            defaultOpen={false}
-          >
-            <p className="leading-relaxed">{analysis.explanation}</p>
-          </CollapsibleSection>
-
-          {analysis.first_aid_tips.length > 0 && (
-            <CollapsibleSection
-              title={t('symptoms.firstAidTips')}
-              icon={<CheckCircle className="size-4 text-green-600" />}
-            >
-              <ul className="space-y-2">
-                {analysis.first_aid_tips.map((tip) => (
-                  <li key={tip} className="flex items-start gap-2">
-                    <CheckCircle className="mt-0.5 size-4 shrink-0 text-green-600" />
-                    {tip}
-                  </li>
-                ))}
-              </ul>
-            </CollapsibleSection>
-          )}
-
-          {analysis.red_flags.length > 0 && (
-            <CollapsibleSection
-              title={t('symptoms.redFlags')}
-              variant="warning"
-              icon={<AlertTriangle className="size-4 text-orange-700" />}
-            >
-              <ul className="space-y-1">
-                {analysis.red_flags.map((flag) => (
-                  <li key={flag} className="text-orange-800">• {flag}</li>
-                ))}
-              </ul>
-            </CollapsibleSection>
-          )}
-        </>
-      )}
 
       <p className="text-xs text-muted-foreground">{analysis.disclaimer}</p>
     </div>

@@ -24,7 +24,7 @@ export function WhoStatsSection({
     <section
       id={id}
       className={cn(
-        'scroll-mt-20 py-10 md:py-12',
+        'scroll-mt-20 py-10 md:py-12 animate-in fade-in slide-in-from-bottom-2 duration-500 fill-mode-both',
         variant === 'muted' && 'rounded-3xl bg-muted/40 px-4 md:px-8',
         variant === 'accent' &&
           'rounded-3xl border border-primary/15 bg-gradient-to-br from-primary/8 via-background to-background px-4 md:px-8',

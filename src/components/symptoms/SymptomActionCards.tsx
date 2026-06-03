@@ -62,7 +62,13 @@ export function SymptomActionCards({ analysis, careLocation, area }: SymptomActi
       icon: isEmergency ? Siren : MapPin,
       title: isEmergency ? t('symptoms.actionEmergency') : t('symptoms.actionNearMe'),
       desc: isEmergency ? t('symptoms.actionEmergencyDesc') : t('symptoms.actionNearMeDesc'),
-      href: isEmergency ? '/health-info' : buildHealthcareFacilitiesUrl({ city: citySlug, nearMe: true }),
+      href: isEmergency
+        ? '/health-info'
+        : buildDoctorSearchUrl({
+            specialty: analysis.recommended_specialty_slug,
+            city: citySlug,
+            nearMe: true,
+          }),
       primary: isEmergency,
       danger: isEmergency,
     },

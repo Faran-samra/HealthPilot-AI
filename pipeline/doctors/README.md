@@ -13,13 +13,18 @@ SUPABASE_SERVICE_ROLE_KEY=...
 ## Workflow
 
 ```bash
-# 1. Harvest profile URLs from sitemaps → doctor_import_raw (pending)
-npm run doctors:harvest -- --source marham --limit 500
+# Full Marham run (~6000+ doctors, parallel fetch, all Pakistan + Punjab cities)
+npm run doctors:marham-ingest -- --harvest-limit 6000 --fetch-batch 400 --rounds 20 --concurrency 8 --rps 4 --publish
+
+# Or step by step:
+
+# 1. Harvest profile URLs (sitemaps + /doctors/{city} listings) → doctor_import_raw
+npm run doctors:harvest -- --source marham --limit 6000 --rps 3
 npm run doctors:harvest -- --source oladoc --limit 500
 npm run doctors:harvest -- --source hamariweb --limit 500
 
-# 2. Fetch & normalize profile pages
-npm run doctors:fetch -- --source marham --limit 100
+# 2. Fetch & normalize profile pages (parallel)
+npm run doctors:fetch -- --source marham --limit 400 --concurrency 8 --rps 4
 
 # 3. Auto-review (approve rows with name + specialty + city)
 npm run doctors:review -- --limit 500

@@ -24,6 +24,8 @@
     "corpus:seed-pk": "tsx scripts/seed-pakistan-corpus.ts",
     "doctors:import": "tsx pipeline/doctors/import-csv.ts",
     "doctors:harvest": "tsx pipeline/doctors/jobs/harvest-sitemaps.ts",
+    "doctors:marham-ingest": "tsx pipeline/doctors/jobs/marham-bulk-ingest.ts",
+    "doctors:purge-garbage-marham": "tsx pipeline/doctors/jobs/purge-garbage-marham.ts",
     "doctors:fetch": "tsx pipeline/doctors/jobs/fetch-profiles.ts",
     "doctors:review": "tsx pipeline/doctors/jobs/review-queue.ts",
     "doctors:merge": "tsx pipeline/doctors/jobs/merge-publish.ts",
@@ -33,6 +35,7 @@
     "doctors:clean-workplaces": "tsx pipeline/doctors/jobs/clean-workplaces.ts",
     "doctors:backfill-locations": "tsx pipeline/doctors/jobs/backfill-locations.ts",
     "doctors:backfill-cities": "tsx pipeline/doctors/jobs/backfill-cities.ts",
+    "doctors:backfill-fees": "tsx pipeline/doctors/jobs/backfill-fees.ts",
     "doctors:backfill-gender": "tsx pipeline/doctors/jobs/backfill-gender.ts",
     "doctors:purge-seed": "tsx pipeline/doctors/jobs/purge-seed-doctors.ts"
   },

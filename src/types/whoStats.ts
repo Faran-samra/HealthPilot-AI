@@ -30,6 +30,7 @@ export interface WhoPakistanStatsResponse {
   fromCache: boolean
   kpis: WhoPakistanKpi[]
   leadingCauses: WhoPakistanCause[]
+  causesSourceYear?: number
   attribution: {
     source: string
     license: string

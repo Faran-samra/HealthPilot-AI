@@ -27,7 +27,7 @@
 - Symptom results: directory doctors + OSM facilities panels
 - Doctor detail: claim profile form
 
-**Status:** 500+ Marham profiles ingested; repair/backfill jobs for fee, city, timings.  
+**Status:** Marham bulk ingest (`doctors:marham-ingest`) — sitemaps + 50+ city listings, parallel fetch, Punjab/smaller cities in `PAKISTAN_CITIES`.  
 **Docs:** [DOCTOR_DIRECTORY.md](../DOCTOR_DIRECTORY.md) · [pipeline/doctors/README.md](../../pipeline/doctors/README.md)
 
 ## Deploy checklist

@@ -3,18 +3,53 @@ import type { Doctor } from '@/lib/database.types'
 import {
   DOCTOR_CITY_LISTING_MAX,
   DOCTOR_SEARCH_LIMIT,
+  NEAR_ME_CITY_RADIUS_KM,
+  NEAR_ME_MAX_CITIES,
+  NEAR_ME_MIN_RESULTS,
   SEARCH_RADIUS_KM,
 } from '@/utils/constants'
 import { annotateNearMeDistances } from '@/utils/doctorGeo'
-import { getCityCenterCoords, nearestCitySlug, normalizeCitySlug } from '@/utils/locationUtils'
+import {
+  getCityCenterCoords,
+  nearbyCitySlugs,
+  nearestCitySlug,
+  normalizeCitySlug,
+} from '@/utils/locationUtils'
 import { matchesGenderFilter } from '@/utils/doctorGender'
 import {
   buildSpecialtyOrFilter,
   doctorMatchesSpecialtyFilter,
 } from '@/utils/specialtyFilter'
 import { isDirectoryListedDoctor } from '@/utils/doctorDirectoryFilter'
+import { isDirectoryQualityDoctor } from '@/utils/doctorSanitize'
 
-const CITY_FETCH_PAGE_SIZE = 500
+const CITY_FETCH_PAGE_SIZE = 1000
+
+/** Lighter payload for directory cards (no profile_details / timings blobs). */
+export const DIRECTORY_LIST_SELECT =
+  'id,full_name,specialty,specialty_slug,qualification,experience_years,hospital_name,clinic_name,address,city,city_slug,province,area,latitude,longitude,phone,whatsapp,consultation_fee,languages,rating,total_reviews,profile_image_url,is_verified,verification_status,is_active,pmdc_number,accepts_online,gender,source,source_url'
+
+const inflightSearches = new Map<string, Promise<DoctorSearchResult[]>>()
+
+function searchCacheKey(params: DoctorSearchParams): string {
+  return JSON.stringify({
+    city: params.city,
+    area: params.area,
+    specialty: params.specialty,
+    hospital: params.hospital,
+    name: params.name,
+    lat: params.latitude,
+    lng: params.longitude,
+    maxFee: params.maxFee,
+    minFee: params.minFee,
+    femaleOnly: params.femaleOnly,
+    maleOnly: params.maleOnly,
+    language: params.language,
+    onlineOnly: params.onlineOnly,
+    scopeToCity: params.scopeToCity,
+    radiusKm: params.radiusKm,
+  })
+}
 
 export interface DoctorSearchParams {
   specialty?: string
@@ -25,6 +60,7 @@ export interface DoctorSearchParams {
   latitude?: number
   longitude?: number
   radiusKm?: number
+  radiiKm?: readonly number[]
   maxFee?: number
   minFee?: number
   femaleOnly?: boolean
@@ -47,7 +83,9 @@ function applyClientFilters(
   doctors: DoctorSearchResult[],
   params: DoctorSearchParams
 ): DoctorSearchResult[] {
-  let results = doctors.filter(isDirectoryListedDoctor)
+  let results = doctors.filter(
+    (d) => isDirectoryListedDoctor(d) && isDirectoryQualityDoctor(d)
+  )
   if (params.specialty) {
     results = results.filter((d) => doctorMatchesSpecialtyFilter(d, params.specialty))
   }
@@ -118,35 +156,50 @@ function applyCityQueryFilters(
   return query
 }
 
-/** Load all published doctors in a city (paginated), then apply client filters. */
+async function fetchCityDoctorsPage(
+  params: DoctorSearchParams,
+  citySlug: string,
+  offset: number,
+  pageEnd: number
+): Promise<DoctorSearchResult[]> {
+  let query = supabase
+    .from('doctors')
+    .select(DIRECTORY_LIST_SELECT)
+    .eq('is_active', true)
+    .eq('publication_status', 'published')
+    .not('source', 'in', '("healthpilot","manual")')
+    .eq('city_slug', citySlug)
+    .order('rating', { ascending: false })
+
+  query = applyCityQueryFilters(query, params)
+
+  const { data, error } = await query.range(offset, pageEnd)
+  if (error) throw error
+  return (data ?? []) as DoctorSearchResult[]
+}
+
+/** Load published doctors in a city (parallel pages, lean columns). */
 async function searchByCityQuery(
   params: DoctorSearchParams,
   citySlug: string
 ): Promise<DoctorSearchResult[]> {
+  const pageStarts: number[] = []
+  for (let offset = 0; offset < DOCTOR_CITY_LISTING_MAX; offset += CITY_FETCH_PAGE_SIZE) {
+    pageStarts.push(offset)
+  }
+
+  const pages = await Promise.all(
+    pageStarts.map((offset) => {
+      const pageEnd = Math.min(offset + CITY_FETCH_PAGE_SIZE - 1, DOCTOR_CITY_LISTING_MAX - 1)
+      return fetchCityDoctorsPage(params, citySlug, offset, pageEnd)
+    })
+  )
+
   const all: DoctorSearchResult[] = []
-  let offset = 0
-
-  while (offset < DOCTOR_CITY_LISTING_MAX) {
-    const pageEnd = Math.min(offset + CITY_FETCH_PAGE_SIZE - 1, DOCTOR_CITY_LISTING_MAX - 1)
-    let query = supabase
-      .from('doctors')
-      .select('*')
-      .eq('is_active', true)
-      .eq('publication_status', 'published')
-      .not('source', 'in', '("healthpilot","manual")')
-      .eq('city_slug', citySlug)
-      .order('rating', { ascending: false })
-
-    query = applyCityQueryFilters(query, params)
-
-    const { data, error } = await query.range(offset, pageEnd)
-    if (error) throw error
-
-    const batch = (data ?? []) as DoctorSearchResult[]
+  for (const batch of pages) {
+    if (batch.length === 0) continue
     all.push(...batch)
-
-    if (batch.length < pageEnd - offset + 1) break
-    offset += CITY_FETCH_PAGE_SIZE
+    if (batch.length < CITY_FETCH_PAGE_SIZE) break
   }
 
   return finalizeResults(all, params)
@@ -156,13 +209,48 @@ async function searchByCity(params: DoctorSearchParams, citySlug: string): Promi
   return searchByCityQuery(params, citySlug)
 }
 
+/** GPS Near Me: same city listings as browse, sorted by distance; widen only if sparse. */
+async function searchNearMeGps(
+  lat: number,
+  lng: number,
+  params: DoctorSearchParams
+): Promise<DoctorSearchResult[]> {
+  const primaryCity =
+    normalizeCitySlug(params.city) ?? nearbyCitySlugs(lat, lng, { maxCities: 1 })[0] ?? 'lahore'
+
+  const cityParams = { ...params, latitude: undefined, longitude: undefined }
+  let merged = await searchByCity(cityParams, primaryCity)
+
+  if (merged.length < NEAR_ME_MIN_RESULTS) {
+    const extraCities = nearbyCitySlugs(lat, lng, {
+      maxCities: NEAR_ME_MAX_CITIES,
+      maxDistanceKm: NEAR_ME_CITY_RADIUS_KM,
+    }).filter((slug) => slug !== primaryCity)
+
+    if (extraCities.length > 0) {
+      const batches = await Promise.all(
+        extraCities.map((slug) => searchByCity(cityParams, slug))
+      )
+      const byId = new Map<string, DoctorSearchResult>()
+      for (const row of [...merged, ...batches.flat()]) {
+        byId.set(row.id, row)
+      }
+      merged = [...byId.values()]
+    }
+  }
+
+  const filtered = finalizeResults(merged, params)
+  return annotateNearMeDistances(filtered, lat, lng).slice(0, DOCTOR_CITY_LISTING_MAX)
+}
+
 async function searchByRadius(
   lat: number,
   lng: number,
   params: DoctorSearchParams,
   citySlug?: string | null
 ): Promise<DoctorSearchResult[]> {
-  const radii = params.radiusKm ? [params.radiusKm] : [...SEARCH_RADIUS_KM]
+  const radii =
+    params.radiiKm ?? (params.radiusKm != null ? [params.radiusKm] : [...SEARCH_RADIUS_KM])
   const scopeToCity = params.scopeToCity !== false
 
   for (const radiusKm of radii) {
@@ -193,19 +281,14 @@ async function searchByRadius(
   return []
 }
 
-export async function findNearbyDoctors(
+async function findNearbyDoctorsUncached(
   params: DoctorSearchParams
 ): Promise<DoctorSearchResult[]> {
   const citySlug = normalizeCitySlug(params.city)
   const { latitude, longitude } = params
 
   if (latitude != null && longitude != null) {
-    const inferredCity = citySlug ?? nearestCitySlug(latitude, longitude)
-    const cityResults = await searchByCity(
-      { ...params, latitude: undefined, longitude: undefined },
-      inferredCity
-    )
-    return annotateNearMeDistances(cityResults, latitude, longitude)
+    return searchNearMeGps(latitude, longitude, params)
   }
 
   if (citySlug) {
@@ -243,7 +326,7 @@ export async function findNearbyDoctors(
 
   let query = supabase
     .from('doctors')
-    .select('*')
+    .select(DIRECTORY_LIST_SELECT)
     .eq('is_active', true)
     .eq('publication_status', 'published')
     .not('source', 'in', '("healthpilot","manual")')
@@ -254,6 +337,20 @@ export async function findNearbyDoctors(
   const { data: fallback, error: e2 } = await query.limit(DOCTOR_CITY_LISTING_MAX)
   if (e2) throw e2
   return finalizeResults((fallback ?? []) as DoctorSearchResult[], params)
+}
+
+export async function findNearbyDoctors(
+  params: DoctorSearchParams
+): Promise<DoctorSearchResult[]> {
+  const key = searchCacheKey(params)
+  const existing = inflightSearches.get(key)
+  if (existing) return existing
+
+  const promise = findNearbyDoctorsUncached(params).finally(() => {
+    inflightSearches.delete(key)
+  })
+  inflightSearches.set(key, promise)
+  return promise
 }
 
 export async function getDoctorById(id: string): Promise<Doctor | null> {
@@ -279,4 +376,36 @@ export async function getDoctorCountByCity(citySlug: string): Promise<number> {
 
   if (error) throw error
   return count ?? 0
+}
+
+/** Cities that have at least one published directory doctor (for location filter). */
+export async function getCitiesWithDoctorCounts(): Promise<Map<string, number>> {
+  const counts = new Map<string, number>()
+  let offset = 0
+  const pageSize = 1000
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('doctors')
+      .select('city_slug')
+      .eq('is_active', true)
+      .eq('publication_status', 'published')
+      .not('source', 'in', '("healthpilot","manual")')
+      .not('city_slug', 'is', null)
+      .range(offset, offset + pageSize - 1)
+
+    if (error) throw error
+    const batch = data ?? []
+    if (batch.length === 0) break
+
+    for (const row of batch) {
+      const slug = normalizeCitySlug(row.city_slug as string)
+      if (slug) counts.set(slug, (counts.get(slug) ?? 0) + 1)
+    }
+
+    if (batch.length < pageSize) break
+    offset += pageSize
+  }
+
+  return counts
 }

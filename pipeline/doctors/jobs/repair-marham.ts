@@ -8,7 +8,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import '../../../scripts/load-env.ts'
-import { isGarbageDisplayText } from '../lib/sanitize.ts'
+import { isGarbageDisplayText, isGarbageDoctorName } from '../lib/sanitize.ts'
 import { cleanWorkplaceName } from '../../../src/utils/doctorWorkplace.ts'
 import { buildMarhamAvailability, mergePracticeTimings } from '../lib/marhamAvailability.ts'
 import { MarhamConnector } from '../sources/marham/connector.ts'
@@ -25,9 +25,12 @@ function arg(name: string): string | undefined {
 function needsProfileRepair(doc: {
   full_name: string
   specialty: string | null
+  specialty_slug: string | null
   hospital_name: string | null
   area: string | null
 }): boolean {
+  if (isGarbageDoctorName(doc.full_name)) return true
+  if (['dr', 'area', 'prof', 'assoc', 'asst'].includes(doc.specialty_slug ?? '')) return true
   if (isGarbageDisplayText(doc.specialty)) return true
   if (doc.specialty && /\s-\s.+?\s+at\s/i.test(doc.specialty)) return true
   if (/^dr\.?\s+(prof|asst|assoc)/i.test(doc.full_name)) return true
@@ -80,7 +83,7 @@ async function main() {
       }
 
       const norm = result.normalized
-      if (!norm) {
+      if (!norm || isGarbageDoctorName(norm.full_name)) {
         failed++
         continue
       }

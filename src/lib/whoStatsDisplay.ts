@@ -1,5 +1,30 @@
 import type { WhoPakistanCause, WhoPakistanKpi } from '@/types/whoStats'
 
+/** Official WHO country profile for Pakistan (PAK / ISO 586). */
+export const WHO_PAKISTAN_PROFILE_URL = 'https://data.who.int/countries/586'
+
+/** WHO GHE 2021 top causes — used if edge cache is stale (data.who.int). */
+export const WHO_LEADING_CAUSES_GHE_2021: WhoPakistanCause[] = [
+  { key: 'ischaemic_heart', label: 'Ischaemic heart disease', year: 2021, deathsPer100k: 90.2, displayValue: '90.2' },
+  { key: 'covid_19', label: 'COVID-19', year: 2021, deathsPer100k: 54.4, displayValue: '54.4' },
+  { key: 'stroke', label: 'Stroke', year: 2021, deathsPer100k: 47.7, displayValue: '47.7' },
+  { key: 'prematurity', label: 'Preterm birth complications', year: 2021, deathsPer100k: 40.1, displayValue: '40.1' },
+  { key: 'birth_asphyxia', label: 'Birth asphyxia and birth trauma', year: 2021, deathsPer100k: 36.4, displayValue: '36.4' },
+  { key: 'copd', label: 'Chronic obstructive pulmonary disease', year: 2021, deathsPer100k: 28.9, displayValue: '28.9' },
+  { key: 'lower_respiratory', label: 'Lower respiratory infections', year: 2021, deathsPer100k: 27.2, displayValue: '27.2' },
+  { key: 'diabetes', label: 'Diabetes mellitus', year: 2021, deathsPer100k: 23.0, displayValue: '23' },
+  { key: 'tuberculosis', label: 'Tuberculosis', year: 2021, deathsPer100k: 22.2, displayValue: '22.2' },
+]
+
+export const WHO_PAKISTAN_POPULATION_FALLBACK = {
+  key: 'population',
+  label: 'Population',
+  unit: 'people',
+  year: 2023,
+  value: 247_504_495,
+  displayValue: '247.5 million',
+}
+
 /** Strip WHO confidence ranges like "66 [65 - 67]" → "66" */
 export function simplifyWhoNumber(display: string, fallback: number): string {
   const cleaned = display.replace(/\s*\[[^\]]*]/g, '').trim()
@@ -24,10 +49,10 @@ export function causeSharePercent(causes: WhoPakistanCause[]): Map<string, numbe
 }
 
 export const GLANCE_KPI_KEYS = [
-  'life_expectancy',
   'population',
   'maternal_mortality',
   'under_five_mortality',
+  'health_expenditure_gdp',
 ] as const
 
 export const HEALTH_FOCUS_KEYS = [

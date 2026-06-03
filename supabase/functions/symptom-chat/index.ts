@@ -1,10 +1,9 @@
 import Anthropic from 'npm:@anthropic-ai/sdk'
-import { MODELS } from '../_shared/models.ts'
 import { callWithTool } from '../_shared/claude.ts'
 import { parseSymptomAnalysis } from '../_shared/schemas.ts'
 import { applySafetyRules } from '../_shared/safety.ts'
 import { createTraceId, logTrace } from '../_shared/observability.ts'
-import { retrieveMedicalContext } from '../_shared/rag.ts'
+import { retrieveMedicalContextWithTimeout } from '../_shared/rag.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -67,6 +66,9 @@ const ANALYSIS_TOOL: Anthropic.Tool = {
   },
 }
 
+const FOLLOW_UP_MODELS = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6'] as const
+const ANALYSIS_MODELS = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-sonnet-4-5-20250929'] as const
+
 const CHAT_SYSTEM = `You are HealthPilot AI — a conversational symptom assistant for Pakistan.
 
 Your job in CHAT mode: ask ONE helpful follow-up question at a time to clarify:
@@ -86,7 +88,8 @@ const ANALYSIS_SYSTEM = `You are HealthPilot AI — finalize symptom analysis fo
 
 Provide structured analysis via submit_symptom_analysis tool.
 - primary_condition: most likely concern in plain language
-- Keep explanation concise (under 120 words)
+- Keep explanation concise (under 90 words)
+- Keep urdu_summary to 2–3 sentences
 - Pakistan context: dengue, typhoid, malaria when relevant
 - Emergency numbers in red_flags when needed: Rescue 1122, Edhi 115
 - urdu_summary: complete Urdu paragraph
@@ -148,10 +151,12 @@ Deno.serve(async (req) => {
     let inputTokens: number | null = null
     let outputTokens: number | null = null
 
-    for (const model of MODELS) {
+    const modelChain = shouldFinalize ? ANALYSIS_MODELS : FOLLOW_UP_MODELS
+
+    for (const model of modelChain) {
       try {
         if (shouldFinalize) {
-          const ragContext = await retrieveMedicalContext(userText, null, 5)
+          const ragContext = await retrieveMedicalContextWithTimeout(userText, null, 3, 2500)
           const analysisSystem = ragContext
             ? `${ANALYSIS_SYSTEM + contextNote}\n\n## Retrieved medical references\n${ragContext}`
             : ANALYSIS_SYSTEM + contextNote
@@ -163,7 +168,7 @@ Deno.serve(async (req) => {
             apiMessages,
             ANALYSIS_TOOL,
             'submit_symptom_analysis',
-            1500
+            1024
           )
           usedModel = call.model
           totalLatency += call.latencyMs
@@ -196,7 +201,7 @@ Deno.serve(async (req) => {
             apiMessages,
             FOLLOW_UP_TOOL,
             'ask_follow_up',
-            400
+            320
           )
           usedModel = call.model
           totalLatency = call.latencyMs

@@ -24,6 +24,7 @@ export function WhoStatsHighlights({ life, population }: Props) {
           <p className="mt-2 text-4xl font-bold tabular-nums text-foreground md:text-5xl">
             {simplifyWhoNumber(life.displayValue, life.value)}
             <span className="ml-2 text-xl font-semibold text-muted-foreground">
+              {' '}
               {t('whoStats.years')}
             </span>
           </p>

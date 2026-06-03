@@ -15,6 +15,7 @@ const OVERPASS_URLS = [
 
 const NOMINATIM_HEADERS = {
   'User-Agent': 'HealthPilotAI/1.0 (https://healthpilot.pk; healthcare discovery)',
+  'Accept-Language': 'en',
 }
 
 /** Fixed city centers — avoids Nominatim returning the wrong city. */
@@ -299,7 +300,7 @@ function overpassToFacility(
   citySlug: string | null
 ): LiveFacility | null {
   const tags = (el.tags ?? {}) as Record<string, string>
-  const name = tags.name ?? tags['name:en'] ?? null
+  const name = tags['name:en'] ?? tags.name ?? tags['name:ur'] ?? null
   if (!name) return null
 
   const lat = (el.lat ?? (el.center as { lat?: number })?.lat) as number | undefined
@@ -325,7 +326,7 @@ function overpassToFacility(
     qualification: null,
     hospital_name: facility_type === 'hospital' ? name : tags.operator ?? null,
     address: addrParts.length ? addrParts.join(', ') : tags['addr:full'] ?? null,
-    city: tags['addr:city'] ?? null,
+    city: tags['addr:city'] ?? (citySlug ? citySlug.charAt(0).toUpperCase() + citySlug.slice(1).replace(/-/g, ' ') : null),
     city_slug: citySlug,
     province: tags['addr:province'] ?? null,
     area: tags['addr:suburb'] ?? tags['addr:district'] ?? null,

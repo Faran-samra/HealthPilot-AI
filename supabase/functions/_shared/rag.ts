@@ -79,3 +79,25 @@ export async function retrieveMedicalContext(
     ...lines,
   ].join('\n')
 }
+
+/** RAG with timeout — analysis continues without references if embed/RPC is slow. */
+export async function retrieveMedicalContextWithTimeout(
+  query: string,
+  specialtyHint?: string | null,
+  matchCount = 3,
+  timeoutMs = 2500
+): Promise<string> {
+  try {
+    return await Promise.race([
+      retrieveMedicalContext(query, specialtyHint, matchCount),
+      new Promise<string>((resolve) => {
+        setTimeout(() => {
+          ragDebug('retrieve:timeout', { timeoutMs })
+          resolve('')
+        }, timeoutMs)
+      }),
+    ])
+  } catch {
+    return ''
+  }
+}

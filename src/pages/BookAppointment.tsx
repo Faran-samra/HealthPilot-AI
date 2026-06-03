@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, MessageCircle } from 'lucide-react'
+import { ArrowLeft, ExternalLink, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,20 +16,24 @@ import { getDisplayWorkplace } from '@/utils/doctorWorkplace'
 import {
   getDoctorWhatsAppLink,
   getMarhamInquiryMessage,
-  getWhatsAppBookingMessage,
 } from '@/utils/doctorWhatsApp'
+import { getMarhamCallcenterUrl, isMarhamDoctor } from '@/utils/marhamBooking'
 import {
   formatTime12h,
   getPracticeTimingsFromDoctor,
   slotsForDoctorOnDate,
 } from '@/utils/practiceTimings'
 import type { Doctor } from '@/lib/database.types'
+import { doctorDetailPath, doctorsListPath } from '@/utils/doctorsListSearch'
 import { cn } from '@/lib/utils'
 
 export default function BookAppointment() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const detailBackHref = id ? doctorDetailPath(id, searchParams) : doctorsListPath(searchParams)
+  const listBackHref = doctorsListPath(searchParams)
   const { user } = useAuthStore()
   const { sessionId } = useSymptomStore()
   const [doctor, setDoctor] = useState<Doctor | null>(null)
@@ -59,14 +63,12 @@ export default function BookAppointment() {
 
   const { slots, dayTiming, hasWeeklySchedule } = slotResult
   const workplace = doctor ? getDisplayWorkplace(doctor) : null
-  const whatsappLink = doctor
-    ? getDoctorWhatsAppLink(
-        doctor,
-        date && time
-          ? getWhatsAppBookingMessage(doctor, { date, time, workplace })
-          : getMarhamInquiryMessage(doctor)
-      )
-    : null
+  const marhamBookingUrl = doctor ? getMarhamCallcenterUrl(doctor.source_url) : null
+  const usesMarhamBooking = Boolean(doctor && isMarhamDoctor(doctor) && marhamBookingUrl)
+  const whatsappInquiryLink =
+    doctor && !usesMarhamBooking
+      ? getDoctorWhatsAppLink(doctor, getMarhamInquiryMessage(doctor))
+      : null
 
   const handleBook = async () => {
     if (!doctor || !date || !time) {
@@ -79,6 +81,11 @@ export default function BookAppointment() {
         toast.error(t('booking.enterNameAndPhone'))
         return
       }
+    }
+
+    if (usesMarhamBooking && !marhamBookingUrl) {
+      toast.error(t('booking.marhamMissingProfile'))
+      return
     }
 
     setSubmitting(true)
@@ -94,6 +101,9 @@ export default function BookAppointment() {
           fee: doctor.consultation_fee ?? undefined,
         })
         toast.success(t('booking.success'))
+        if (marhamBookingUrl) {
+          window.open(marhamBookingUrl, '_blank', 'noopener,noreferrer')
+        }
         navigate('/appointments')
       } else {
         await createGuestAppointment({
@@ -106,10 +116,12 @@ export default function BookAppointment() {
           fee: doctor.consultation_fee ?? undefined,
         })
         toast.success(t('booking.guestSuccess'))
-        if (whatsappLink) {
-          window.open(whatsappLink, '_blank', 'noopener,noreferrer')
+        if (marhamBookingUrl) {
+          window.open(marhamBookingUrl, '_blank', 'noopener,noreferrer')
+        } else if (whatsappInquiryLink) {
+          window.open(whatsappInquiryLink, '_blank', 'noopener,noreferrer')
         }
-        navigate(`/doctors/${doctor.id}`)
+        navigate(detailBackHref)
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('booking.failed'))
@@ -120,13 +132,22 @@ export default function BookAppointment() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-10">
-      <Link
-        to={`/doctors/${id}`}
-        className="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        {t('doctors.backToDoctors')}
-      </Link>
+      <div className="mb-6 flex flex-wrap items-center gap-3 text-sm">
+        <Link
+          to={detailBackHref}
+          className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" />
+          {t('doctors.backToProfile')}
+        </Link>
+        <span className="text-muted-foreground">·</span>
+        <Link
+          to={listBackHref}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          {t('doctors.backToDoctors')}
+        </Link>
+      </div>
 
       <Card>
         <CardHeader>
@@ -248,17 +269,33 @@ export default function BookAppointment() {
             />
           </div>
 
-          <Button
-            className="w-full"
-            onClick={handleBook}
-            disabled={submitting || !date || !time}
-          >
-            {submitting ? t('booking.submitting') : t('booking.confirm')}
-          </Button>
+          {usesMarhamBooking && (
+            <p className="text-sm text-muted-foreground">{t('booking.marhamRedirectHint')}</p>
+          )}
 
-          {whatsappLink && (
+          {usesMarhamBooking && marhamBookingUrl ? (
+            <Button
+              type="button"
+              className="w-full gap-2"
+              onClick={handleBook}
+              disabled={submitting || !date || !time}
+            >
+              <ExternalLink className="size-4" />
+              {submitting ? t('booking.submitting') : t('booking.confirmOnMarham')}
+            </Button>
+          ) : (
+            <Button
+              className="w-full"
+              onClick={handleBook}
+              disabled={submitting || !date || !time}
+            >
+              {submitting ? t('booking.submitting') : t('booking.confirm')}
+            </Button>
+          )}
+
+          {whatsappInquiryLink && (
             <a
-              href={whatsappLink}
+              href={whatsappInquiryLink}
               target="_blank"
               rel="noopener noreferrer"
               className="block"

@@ -9,6 +9,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import type { WhoPakistanKpi } from '@/types/whoStats'
 import { formatPopulation, simplifyWhoNumber } from '@/lib/whoStatsDisplay'
 import { cn } from '@/lib/utils'
@@ -66,13 +67,18 @@ export function WhoStatsInsightCards({ kpis }: Props) {
                 <Icon className="size-6 text-primary" />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="font-semibold leading-snug text-foreground">
-                  {t(`whoStats.kpi.${kpi.key}.title`, { defaultValue: kpi.label })}
-                </h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-semibold leading-snug text-foreground">
+                    {t(`whoStats.kpi.${kpi.key}.title`, { defaultValue: kpi.label })}
+                  </h3>
+                  <Badge variant="outline" className="text-[10px] font-normal">
+                    {t('whoStats.dataYear', { year: kpi.year })}
+                  </Badge>
+                </div>
                 <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-primary">
                   {simple}
                   {kpi.key === 'life_expectancy' && (
-                    <span className="ml-1 text-base font-medium text-muted-foreground">
+                    <span className="ml-1.5 text-base font-medium text-muted-foreground">
                       {t('whoStats.years')}
                     </span>
                   )}
@@ -80,9 +86,12 @@ export function WhoStatsInsightCards({ kpis }: Props) {
                     <span className="ml-0.5 text-base font-medium text-muted-foreground">%</span>
                   )}
                 </p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {t(`whoStats.kpi.${kpi.key}.plain`, { defaultValue: '' })}
+                </p>
               </div>
             </div>
-            <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
               {t(`whoStats.kpi.${kpi.key}.explain`, { value: simple, year: kpi.year })}
             </p>
           </article>

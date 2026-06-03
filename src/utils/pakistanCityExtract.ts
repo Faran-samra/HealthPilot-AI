@@ -20,13 +20,43 @@ export function normalizeCitySlugLocal(city: string | null | undefined): string 
   return slug || null
 }
 
-/** Match trailing segment(s) of a Marham profile slug to a known city. */
+const MARHAM_SPECIALTY_TAIL_WORDS = new Set([
+  'specialist',
+  'surgeon',
+  'physician',
+  'doctor',
+  'consultant',
+  'pathologist',
+  'dentist',
+  'cardiologist',
+  'gynecologist',
+  'dermatologist',
+  'neurologist',
+  'urologist',
+  'pediatrician',
+  'psychiatrist',
+  'audiologist',
+  'nutritionist',
+  'oncologist',
+  'radiologist',
+  'orthopedic',
+  'ent',
+])
+
+/** Match trailing segment(s) of a Marham profile slug to a city (known or Marham slug). */
 export function parseCityFromMarhamSlug(slug: string): string | null {
   const parts = slug.toLowerCase().split('-').filter(Boolean)
-  for (let n = Math.min(3, parts.length); n >= 1; n--) {
+  if (parts.length < 2) return null
+
+  for (let n = Math.min(3, parts.length - 1); n >= 1; n--) {
     const candidate = parts.slice(-n).join('-')
     if (CITY_SLUG_SET.has(candidate)) return candidate
+    if (n >= 2 && candidate.length >= 4) return candidate
   }
+
+  const last = parts[parts.length - 1]
+  if (last.length >= 3 && !MARHAM_SPECIALTY_TAIL_WORDS.has(last)) return last
+
   return null
 }
 
@@ -69,6 +99,7 @@ export function getCityDisplayName(citySlug: string): string {
 
 export function resolveMarhamDoctorCity(input: {
   profileSlug: string
+  urlCitySlug?: string | null
   jsonCity?: string | null
   areaLine?: string | null
 }): { city: string; city_slug: string; province: string | null } {
@@ -77,9 +108,10 @@ export function resolveMarhamDoctorCity(input: {
     ? parseCityFromLocationText(input.jsonCity) ??
       (isKnownCitySlug(input.jsonCity) ? normalizeCitySlugLocal(input.jsonCity) : null)
     : null
+  const fromUrl = input.urlCitySlug ? normalizeCitySlugLocal(input.urlCitySlug) : null
   const fromSlug = parseCityFromMarhamSlug(input.profileSlug)
 
-  const city_slug = fromArea ?? fromJson ?? fromSlug ?? 'lahore'
+  const city_slug = fromArea ?? fromJson ?? fromUrl ?? fromSlug ?? 'lahore'
   const meta = getCityMeta(city_slug)
 
   return {

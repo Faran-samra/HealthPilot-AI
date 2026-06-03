@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, MapPin, MessageCircle, Navigation, Phone, Star, Video } from 'lucide-react'
+import { ArrowLeft, ExternalLink, MapPin, MessageCircle, Navigation, Phone, Star, Video } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -11,6 +11,11 @@ import { DoctorBadges } from '@/components/doctors/DoctorBadges'
 import { DoctorProfileExtras } from '@/components/doctors/DoctorProfileExtras'
 import { PmdcBadge } from '@/components/doctors/PmdcBadge'
 import { getDoctorById } from '@/services/doctorService'
+import {
+  directoryDoctorToDoctorPreview,
+  useDoctorProfileStore,
+  type DoctorDetailLocationState,
+} from '@/store/doctorProfileStore'
 import { useGeolocation } from '@/hooks/useGeolocation'
 import { formatPKR } from '@/utils/formatters'
 import { getWhatsAppVideoLink } from '@/utils/appointmentUtils'
@@ -22,27 +27,70 @@ import {
   getDoctorWhatsAppLink,
   getMarhamInquiryMessage,
 } from '@/utils/doctorWhatsApp'
+import { getMarhamCallcenterUrl, isMarhamDoctor } from '@/utils/marhamBooking'
+import { bookAppointmentPath, doctorsListPath } from '@/utils/doctorsListSearch'
 import type { Doctor } from '@/lib/database.types'
 
 export default function DoctorDetail() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
+  const locationState = useLocation().state as DoctorDetailLocationState | null
+  const listBackHref = doctorsListPath(searchParams)
+  const bookHref = id ? bookAppointmentPath(id, searchParams) : '#'
   const { location } = useGeolocation()
-  const [doctor, setDoctor] = useState<Doctor | null>(null)
-  const [loading, setLoading] = useState(true)
+  const peekProfile = useDoctorProfileStore((s) => s.peek)
+  const putProfile = useDoctorProfileStore((s) => s.put)
+
+  const initialDoctor = useMemo(() => {
+    if (!id) return null
+    const cached = peekProfile(id)
+    if (cached) return cached
+    const preview = locationState?.directoryDoctor
+    if (preview?.id === id) return directoryDoctorToDoctorPreview(preview)
+    return null
+  }, [id, locationState?.directoryDoctor, peekProfile])
+
+  const [doctor, setDoctor] = useState<Doctor | null>(initialDoctor)
+  const [loadingFull, setLoadingFull] = useState(!initialDoctor)
 
   useEffect(() => {
     if (!id) return
+    const cached = peekProfile(id)
+    if (cached) {
+      setDoctor(cached)
+      setLoadingFull(false)
+      return
+    }
+    const preview = locationState?.directoryDoctor
+    if (preview?.id === id) {
+      setDoctor(directoryDoctorToDoctorPreview(preview))
+      setLoadingFull(false)
+    }
     getDoctorById(id)
-      .then(setDoctor)
+      .then((full) => {
+        if (full) {
+          setDoctor(full)
+          putProfile(id, full)
+        }
+      })
       .catch(() => toast.error(t('doctors.notFound')))
-      .finally(() => setLoading(false))
-  }, [id, t])
+      .finally(() => setLoadingFull(false))
+  }, [id, locationState?.directoryDoctor, peekProfile, putProfile, t])
 
-  if (loading) {
+  if (loadingFull && !doctor) {
     return (
-      <div className="flex justify-center py-20">
-        <div className="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      <div className="mx-auto max-w-2xl px-4 py-10">
+        <div className="mb-6 h-4 w-32 animate-pulse rounded bg-muted" />
+        <div className="space-y-4 rounded-xl border p-6">
+          <div className="h-7 w-2/3 animate-pulse rounded bg-muted" />
+          <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
+          <div className="h-40 animate-pulse rounded-lg bg-muted" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="h-12 animate-pulse rounded bg-muted" />
+            <div className="h-12 animate-pulse rounded bg-muted" />
+          </div>
+        </div>
       </div>
     )
   }
@@ -51,7 +99,7 @@ export default function DoctorDetail() {
     return (
       <div className="mx-auto max-w-2xl px-4 py-20 text-center">
         <p className="text-muted-foreground">{t('doctors.notFound')}</p>
-        <Link to="/doctors"><Button variant="link">{t('doctors.backToSearch')}</Button></Link>
+        <Link to={doctorsListPath()}><Button variant="link">{t('doctors.backToSearch')}</Button></Link>
       </div>
     )
   }
@@ -61,11 +109,17 @@ export default function DoctorDetail() {
   const workplace = getDisplayWorkplace(doctor)
   const locationLine = formatDoctorLocation(doctor)
   const mapLabel = formatDoctorMapLabel(doctor)
-  const whatsappInquiry = getDoctorWhatsAppLink(doctor, getMarhamInquiryMessage(doctor))
+  const marhamBookingUrl = getMarhamCallcenterUrl(doctor.source_url)
+  const usesMarhamBooking = isMarhamDoctor(doctor) && Boolean(marhamBookingUrl)
+  const whatsappInquiry =
+    !usesMarhamBooking && getDoctorWhatsAppLink(doctor, getMarhamInquiryMessage(doctor))
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
-      <Link to="/doctors" className="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        to={listBackHref}
+        className="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="size-4" />
         {t('doctors.backToDoctors')}
       </Link>
@@ -135,12 +189,26 @@ export default function DoctorDetail() {
           )}
 
           <div className="flex flex-wrap gap-2 pt-2">
-            <Link to={`/doctors/${doctor.id}/book`}>
-              <Button>{t('doctors.bookAppointment')}</Button>
-            </Link>
+            {usesMarhamBooking && marhamBookingUrl ? (
+              <>
+                <a href={marhamBookingUrl} target="_blank" rel="noopener noreferrer">
+                  <Button className="gap-1">
+                    <ExternalLink className="size-4" />
+                    {t('doctors.bookOnMarham')}
+                  </Button>
+                </a>
+                <Link to={bookHref}>
+                  <Button variant="outline">{t('doctors.bookAppointment')}</Button>
+                </Link>
+              </>
+            ) : (
+              <Link to={bookHref}>
+                <Button>{t('doctors.bookAppointment')}</Button>
+              </Link>
+            )}
             {whatsappInquiry && (
               <a href={whatsappInquiry} target="_blank" rel="noopener noreferrer">
-                <Button variant="default" className="gap-1 bg-[#25D366] hover:bg-[#20bd5a]">
+                <Button variant="outline" className="gap-1">
                   <MessageCircle className="size-4" />
                   {t('doctors.getInTouchWhatsApp')}
                 </Button>
@@ -176,10 +244,18 @@ export default function DoctorDetail() {
         </CardContent>
       </Card>
 
-      <DoctorProfileExtras
-        profileDetails={doctor.profile_details}
-        availableTimes={doctor.available_times}
-      />
+      {loadingFull && !doctor.profile_details ? (
+        <div className="mt-6 space-y-3 rounded-xl border p-4">
+          <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+          <div className="h-16 animate-pulse rounded bg-muted" />
+          <div className="h-16 animate-pulse rounded bg-muted" />
+        </div>
+      ) : (
+        <DoctorProfileExtras
+          profileDetails={doctor.profile_details}
+          availableTimes={doctor.available_times}
+        />
+      )}
     </div>
   )
 }

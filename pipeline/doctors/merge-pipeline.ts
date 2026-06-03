@@ -5,6 +5,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { dedupeDoctorGroups, dedupeKey } from './lib/dedupe.ts'
 import type { NormalizedDoctorRow } from './lib/normalize.ts'
+import { isGarbageDoctorName } from './lib/sanitize.ts'
 import { resolveDoctorMapPosition } from '../../src/utils/doctorLocationResolve.ts'
 
 function coordsForRow(d: NormalizedDoctorRow): { latitude: number; longitude: number } | null {
@@ -36,24 +37,32 @@ export async function loadNormalizedFromImports(
   options: MergeOptions = {},
 ): Promise<{ rows: (NormalizedDoctorRow & { import_id: string })[]; ids: string[] }> {
   const status = options.reviewStatus ?? 'approved'
-  let query = supabase
-    .from('doctor_import_raw')
-    .select('id, source, source_url, normalized_payload, full_name, specialty_raw, city_raw, pmdc_number, payload')
-    .eq('review_status', status)
-    .is('published_doctor_id', null)
-    .limit(options.limit ?? 5000)
-
-  const { data, error } = await query
-  if (error) throw error
-
+  const maxRows = options.limit ?? 50_000
+  const pageSize = 1000
   const rows: (NormalizedDoctorRow & { import_id: string })[] = []
   const ids: string[] = []
 
-  for (const r of data ?? []) {
-    const norm = r.normalized_payload as NormalizedDoctorRow | null
-    if (!norm?.full_name) continue
-    rows.push({ ...norm, import_id: r.id })
-    ids.push(r.id)
+  for (let offset = 0; offset < maxRows; offset += pageSize) {
+    const { data, error } = await supabase
+      .from('doctor_import_raw')
+      .select('id, source, source_url, normalized_payload, full_name, specialty_raw, city_raw, pmdc_number, payload')
+      .eq('review_status', status)
+      .is('published_doctor_id', null)
+      .not('normalized_payload', 'is', null)
+      .range(offset, offset + pageSize - 1)
+
+    if (error) throw error
+    if (!data?.length) break
+
+    for (const r of data) {
+      const norm = r.normalized_payload as NormalizedDoctorRow | null
+      if (!norm?.full_name || isGarbageDoctorName(norm.full_name)) continue
+      rows.push({ ...norm, import_id: r.id })
+      ids.push(r.id)
+      if (rows.length >= maxRows) break
+    }
+
+    if (rows.length >= maxRows || data.length < pageSize) break
   }
 
   return { rows, ids }
@@ -95,45 +104,71 @@ export async function mergeImportsToDoctors(
     const publication_status = options.publish ? 'published' : 'draft'
     const coords = coordsForRow(d)
 
-    const { data: doc, error } = await supabase
-      .from('doctors')
-      .insert({
-        full_name: d.full_name,
-        specialty: d.specialty,
-        specialty_slug: d.specialty_slug,
-        qualification: d.qualification ?? null,
-        experience_years: d.experience_years ?? null,
-        hospital_name: d.hospital_name ?? null,
-        clinic_name: d.clinic_name ?? null,
-        address: d.address ?? null,
-        city: d.city,
-        city_slug: d.city_slug,
-        province: d.province ?? null,
-        area: d.area ?? null,
-        latitude: coords?.latitude ?? null,
-        longitude: coords?.longitude ?? null,
-        phone: d.phone ?? null,
-        whatsapp: d.whatsapp ?? null,
-        consultation_fee: d.consultation_fee ?? null,
-        gender: d.gender ?? null,
-        languages: d.languages ?? ['Urdu', 'English'],
-        pmdc_number: d.pmdc_number ?? null,
-        source: d.source,
-        source_url: d.source_url ?? null,
-        verification_status: d.verification_status,
-        is_verified: d.is_verified,
-        is_active: true,
-        publication_status,
-        source_count: group.sourceCount,
-        rating: 0,
-        total_reviews: 0,
-        accepts_online: false,
-        profile_details: d.profile_details ?? {},
-        available_days: d.available_days ?? null,
-        available_times: d.available_times ?? null,
-      })
-      .select('id')
-      .single()
+    const row = {
+      full_name: d.full_name,
+      specialty: d.specialty,
+      specialty_slug: d.specialty_slug,
+      qualification: d.qualification ?? null,
+      experience_years: d.experience_years ?? null,
+      hospital_name: d.hospital_name ?? null,
+      clinic_name: d.clinic_name ?? null,
+      address: d.address ?? null,
+      city: d.city,
+      city_slug: d.city_slug,
+      province: d.province ?? null,
+      area: d.area ?? null,
+      latitude: coords?.latitude ?? null,
+      longitude: coords?.longitude ?? null,
+      phone: d.phone ?? null,
+      whatsapp: d.whatsapp ?? null,
+      consultation_fee: d.consultation_fee ?? null,
+      gender: d.gender ?? null,
+      languages: d.languages ?? ['Urdu', 'English'],
+      pmdc_number: d.pmdc_number ?? null,
+      source: d.source,
+      source_url: d.source_url ?? null,
+      verification_status: d.verification_status,
+      is_verified: d.is_verified,
+      is_active: true,
+      publication_status,
+      source_count: group.sourceCount,
+      profile_details: d.profile_details ?? {},
+      available_days: d.available_days ?? null,
+      available_times: d.available_times ?? null,
+      updated_at: new Date().toISOString(),
+    }
+
+    let doc: { id: string } | null = null
+    let error: { message: string } | null = null
+
+    if (d.source_url) {
+      const { data: existing } = await supabase
+        .from('doctors')
+        .select('id')
+        .eq('source_url', d.source_url)
+        .maybeSingle()
+
+      if (existing?.id) {
+        const res = await supabase.from('doctors').update(row).eq('id', existing.id).select('id').single()
+        doc = res.data
+        error = res.error
+      }
+    }
+
+    if (!doc) {
+      const res = await supabase
+        .from('doctors')
+        .insert({
+          ...row,
+          rating: 0,
+          total_reviews: 0,
+          accepts_online: false,
+        })
+        .select('id')
+        .single()
+      doc = res.data
+      error = res.error
+    }
 
     if (error || !doc) {
       errors++

@@ -17,6 +17,42 @@ export const PAKISTAN_CITIES = [
   { value: 'muzaffarabad', label: 'Muzaffarabad', province: 'AJK' },
   { value: 'gilgit', label: 'Gilgit', province: 'GB' },
   { value: 'mirpur', label: 'Mirpur (AJK)', province: 'AJK' },
+  { value: 'gujrat', label: 'Gujrat', province: 'Punjab' },
+  { value: 'jhelum', label: 'Jhelum', province: 'Punjab' },
+  { value: 'sheikhupura', label: 'Sheikhupura', province: 'Punjab' },
+  { value: 'kasur', label: 'Kasur', province: 'Punjab' },
+  { value: 'okara', label: 'Okara', province: 'Punjab' },
+  { value: 'sahiwal', label: 'Sahiwal', province: 'Punjab' },
+  { value: 'rahim-yar-khan', label: 'Rahim Yar Khan', province: 'Punjab' },
+  { value: 'dera-ghazi-khan', label: 'Dera Ghazi Khan', province: 'Punjab' },
+  { value: 'mandi-bahauddin', label: 'Mandi Bahauddin', province: 'Punjab' },
+  { value: 'chiniot', label: 'Chiniot', province: 'Punjab' },
+  { value: 'vehari', label: 'Vehari', province: 'Punjab' },
+  { value: 'pakpattan', label: 'Pakpattan', province: 'Punjab' },
+  { value: 'narowal', label: 'Narowal', province: 'Punjab' },
+  { value: 'hafizabad', label: 'Hafizabad', province: 'Punjab' },
+  { value: 'mianwali', label: 'Mianwali', province: 'Punjab' },
+  { value: 'bhakkar', label: 'Bhakkar', province: 'Punjab' },
+  { value: 'attock', label: 'Attock', province: 'Punjab' },
+  { value: 'chakwal', label: 'Chakwal', province: 'Punjab' },
+  { value: 'khushab', label: 'Khushab', province: 'Punjab' },
+  { value: 'jhang', label: 'Jhang', province: 'Punjab' },
+  { value: 'toba-tek-singh', label: 'Toba Tek Singh', province: 'Punjab' },
+  { value: 'muzaffargarh', label: 'Muzaffargarh', province: 'Punjab' },
+  { value: 'khanewal', label: 'Khanewal', province: 'Punjab' },
+  { value: 'lodhran', label: 'Lodhran', province: 'Punjab' },
+  { value: 'bahawalnagar', label: 'Bahawalnagar', province: 'Punjab' },
+  { value: 'wah', label: 'Wah Cantt', province: 'Punjab' },
+  { value: 'taxila', label: 'Taxila', province: 'Punjab' },
+  { value: 'gojra', label: 'Gojra', province: 'Punjab' },
+  { value: 'burewala', label: 'Burewala', province: 'Punjab' },
+  { value: 'mardan', label: 'Mardan', province: 'KPK' },
+  { value: 'swabi', label: 'Swabi', province: 'KPK' },
+  { value: 'mingora', label: 'Mingora', province: 'KPK' },
+  { value: 'kohat', label: 'Kohat', province: 'KPK' },
+  { value: 'larkana', label: 'Larkana', province: 'Sindh' },
+  { value: 'nawabshah', label: 'Nawabshah', province: 'Sindh' },
+  { value: 'mirpur-khas', label: 'Mirpur Khas', province: 'Sindh' },
 ] as const
 
 export type PakistanCity = (typeof PAKISTAN_CITIES)[number]
@@ -113,6 +149,42 @@ export const CITY_CENTERS: Record<string, { lat: number; lng: number }> = {
   muzaffarabad: { lat: 34.3700, lng: 73.4700 },
   gilgit: { lat: 35.9208, lng: 74.3144 },
   mirpur: { lat: 33.1484, lng: 73.7519 },
+  gujrat: { lat: 32.5742, lng: 74.0754 },
+  jhelum: { lat: 32.9408, lng: 73.7277 },
+  sheikhupura: { lat: 31.7131, lng: 73.9783 },
+  kasur: { lat: 31.1156, lng: 74.4466 },
+  okara: { lat: 30.8081, lng: 73.4458 },
+  sahiwal: { lat: 30.6667, lng: 73.1 },
+  'rahim-yar-khan': { lat: 28.4202, lng: 70.2989 },
+  'dera-ghazi-khan': { lat: 30.0561, lng: 70.6348 },
+  'mandi-bahauddin': { lat: 32.587, lng: 73.4917 },
+  chiniot: { lat: 31.72, lng: 72.9789 },
+  vehari: { lat: 30.0443, lng: 72.3556 },
+  pakpattan: { lat: 30.341, lng: 73.386 },
+  narowal: { lat: 32.102, lng: 74.874 },
+  hafizabad: { lat: 32.0709, lng: 73.688 },
+  mianwali: { lat: 32.585, lng: 71.5436 },
+  bhakkar: { lat: 31.6263, lng: 71.0657 },
+  attock: { lat: 33.7667, lng: 72.3598 },
+  chakwal: { lat: 32.9333, lng: 72.8667 },
+  khushab: { lat: 32.296, lng: 72.352 },
+  jhang: { lat: 31.2682, lng: 72.3181 },
+  'toba-tek-singh': { lat: 30.9743, lng: 72.4827 },
+  muzaffargarh: { lat: 30.0732, lng: 71.1945 },
+  khanewal: { lat: 30.3017, lng: 71.9311 },
+  lodhran: { lat: 29.5339, lng: 71.6324 },
+  bahawalnagar: { lat: 29.9984, lng: 73.2527 },
+  wah: { lat: 33.7733, lng: 72.745 },
+  taxila: { lat: 33.7461, lng: 72.8397 },
+  gojra: { lat: 31.1487, lng: 72.6869 },
+  burewala: { lat: 30.1667, lng: 72.65 },
+  mardan: { lat: 34.1984, lng: 72.0451 },
+  swabi: { lat: 34.1201, lng: 72.4698 },
+  mingora: { lat: 34.7717, lng: 72.36 },
+  kohat: { lat: 33.5869, lng: 71.4422 },
+  larkana: { lat: 27.56, lng: 68.214 },
+  nawabshah: { lat: 26.2442, lng: 68.41 },
+  'mirpur-khas': { lat: 25.525, lng: 69.0159 },
 }
 
 export const FAMOUS_HOSPITALS: Record<string, string[]> = {
@@ -135,6 +207,21 @@ export const FAMOUS_HOSPITALS: Record<string, string[]> = {
 
 /** Default search radius tiers (km) for GPS-based discovery. */
 export const SEARCH_RADIUS_KM = [15, 30, 50] as const
+
+/** Expanding radii for Near Me — grows until enough doctors or max tier. */
+export const NEAR_ME_RADIUS_KM = [25, 50, 75, 100, 150] as const
+
+/** Min results before widening to nearby cities (Near Me). */
+export const NEAR_ME_MIN_RESULTS = 6
+
+/** Max cities to merge when GPS area is sparse. */
+export const NEAR_ME_MAX_CITIES = 5
+
+/** Include city centers within this distance (km) for Near Me multi-city merge. */
+export const NEAR_ME_CITY_RADIUS_KM = 95
+
+/** Max doctors returned for Near Me directory list. */
+export const NEAR_ME_LIST_MAX = 500
 
 /** Max doctors for GPS radius / compact panels (symptom checker, etc.). */
 export const DOCTOR_SEARCH_LIMIT = 50

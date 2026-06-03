@@ -57,7 +57,12 @@ export default function HealthStatistics() {
 
   return (
     <div className="min-h-screen bg-background">
-      <WhoStatsHero onRefresh={() => load(true)} refreshing={refreshing} loading={loading} />
+      <WhoStatsHero
+        onRefresh={() => load(true)}
+        refreshing={refreshing}
+        loading={loading}
+        whoProfileUrl={data?.country.whoDataUrl}
+      />
 
       <div className="mx-auto max-w-6xl px-4 pb-16">
         {loading && <WhoStatsLoading />}
@@ -114,7 +119,10 @@ export default function HealthStatistics() {
               title={t('whoStats.causesSectionTitle')}
               subtitle={t('whoStats.causesSectionSubtitle')}
             >
-              <WhoStatsCausesSection causes={data.leadingCauses} />
+              <WhoStatsCausesSection
+                causes={data.leadingCauses}
+                sourceYear={data.causesSourceYear ?? 2021}
+              />
             </WhoStatsSection>
 
             <WhoStatsSection
@@ -128,20 +136,14 @@ export default function HealthStatistics() {
               <WhoStatsActionBanner />
             </div>
 
-            <footer className="mt-10 rounded-2xl border border-dashed border-border/80 bg-muted/20 px-5 py-6 text-center">
-              <p className="text-sm font-medium text-foreground">{t('whoStats.disclaimerTitle')}</p>
-              <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
-                {t('whoStats.disclaimer')}
-              </p>
-              <p className="mt-4 text-xs text-muted-foreground/80">{t('whoStats.sourceLine')}</p>
-              <a
-                href={data.country.whoDataUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-block text-xs text-primary/80 hover:text-primary hover:underline"
-              >
-                {t('whoStats.whoProfile')}
-              </a>
+            <footer className="mt-10 space-y-4">
+              <div className="rounded-2xl border border-dashed border-border/80 bg-muted/20 px-5 py-6 text-center">
+                <p className="text-sm font-medium text-foreground">{t('whoStats.disclaimerTitle')}</p>
+                <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
+                  {t('whoStats.disclaimer')}
+                </p>
+                <p className="mt-4 text-xs text-muted-foreground/80">{t('whoStats.sourceLine')}</p>
+              </div>
             </footer>
           </div>
         )}

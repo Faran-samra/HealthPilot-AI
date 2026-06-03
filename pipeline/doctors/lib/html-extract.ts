@@ -52,38 +52,51 @@ export function extractFeePkr(html: string): number | null {
   return m ? parseInt(m[1].replace(/,/g, ''), 10) : null
 }
 
-/** Consultation fee from practice block (not sidebar "Starting from Rs. 500"). */
-export function extractMarhamConsultationFee(html: string): number | null {
-  const practiceBlock = html.match(
-    /Practice Address[\s\S]{0,1200}?(?=Available Timings|No extra charges|Report In-correct)/i,
+const MARHAM_FEE_MIN = 100
+const MARHAM_FEE_MAX = 100_000
+
+function parseMarhamFeeAmount(raw: string): number | null {
+  const n = parseInt(raw.replace(/,/g, ''), 10)
+  if (Number.isNaN(n) || n < MARHAM_FEE_MIN || n > MARHAM_FEE_MAX) return null
+  return n
+}
+
+function marhamPracticeSection(html: string): string {
+  const block = html.match(
+    /Practice Address[\s\S]*?(?=Off Panel Doctor|Get Affordable Care from|Ghar bethe doctor|Find Your Doctor|<\/main>)/i,
   )?.[0]
+  return block ?? html
+}
 
-  if (practiceBlock) {
-    const amounts: number[] = []
-    for (const m of practiceBlock.matchAll(/(?:PKR|Rs\.?)\s*([\d,]+)/gi)) {
-      const n = parseInt(m[1].replace(/,/g, ''), 10)
-      if (n >= 200 && n <= 100_000) amounts.push(n)
-    }
-    if (amounts.length > 0) return amounts[amounts.length - 1]
-  }
+function feeAfterAreaLine(html: string): number | null {
+  const scope = marhamPracticeSection(html)
 
-  const jsonFee =
-    extractJsonField(html, 'consultation_fee') ??
-    extractJsonField(html, 'fee') ??
-    extractJsonField(html, 'price')
-  if (jsonFee) {
-    const n = parseInt(jsonFee.replace(/[^\d]/g, ''), 10)
-    if (n >= 200 && n <= 100_000) return n
-  }
+  // Live Marham markup: <p>Area: …</p> then <p>Rs. …</p>
+  const pairedParagraphs = scope.match(
+    /<p[^>]*>\s*Area:\s*[^<]+<\/p>\s*<p[^>]*>\s*(?:PKR|Rs\.?)\s*([\d,]+)/i,
+  )
+  if (pairedParagraphs) return parseMarhamFeeAmount(pairedParagraphs[1])
 
-  for (const m of html.matchAll(/(?:PKR|Rs\.?)\s*([\d,]+)/gi)) {
-    const idx = m.index ?? 0
-    const before = html.slice(Math.max(0, idx - 80), idx).toLowerCase()
-    if (/starting from|ghar bethe|save time and money|online psychiatric/i.test(before)) {
-      continue
-    }
-    const n = parseInt(m[1].replace(/,/g, ''), 10)
-    if (n >= 200 && n <= 100_000) return n
+  // Plain-text / tests — avoid matching "area:" inside "textarea:focus" in CSS
+  const areaBand = scope.match(
+    /(?<![a-z-])Area:\s*[\s\S]*?(?=Available\s+Timings|No extra charges for booking)/i,
+  )?.[0]
+  if (!areaBand) return null
+
+  const m = areaBand.match(/(?:PKR|Rs\.?)\s*([\d,]+)/i)
+  return m ? parseMarhamFeeAmount(m[1]) : null
+}
+
+/** Consultation fee from practice block (not sidebar "Starting from Rs. 500" or related doctors). */
+export function extractMarhamConsultationFee(html: string): number | null {
+  const fromArea = feeAfterAreaLine(html)
+  if (fromArea != null) return fromArea
+
+  // Do not use generic JSON "fee"/"price" — Marham often embeds 500 (online consult promo).
+  for (const field of ['consultation_fee', 'consultationFee', 'appointment_fee', 'appointmentFee']) {
+    const m = html.match(new RegExp(`"${field}"\\s*:\\s*(\\d+)`, 'i'))
+    const fromJson = m ? parseMarhamFeeAmount(m[1]) : null
+    if (fromJson != null) return fromJson
   }
 
   return null
@@ -241,17 +254,18 @@ function extractPracticeTimingsFromHtml(html: string): { day: string; start: str
 export { extractPracticeTimingsFromHtml }
 
 function extractMarhamSectionList(html: string, section: 'Services' | 'Diseases'): string[] {
+  const endMarkers =
+    section === 'Services'
+      ? 'Diseases|Symptoms|Interest|Professional Statement|FAQs|Appointment Details'
+      : 'Symptoms|Interest|Professional Statement|FAQs|Appointment Details|Following are the services'
+
   const sectionHtml = html.match(
-    new RegExp(
-      `(?:<h[23][^>]*>\\s*${section}\\s*<|\\b${section}\\b)[\\s\\S]{0,5000}?(?=Diseases|Symptoms|Interest|Professional Statement|FAQs|Appointment Details|Marham provides|Following are the services)`,
-      'i',
-    ),
+    new RegExp(`<h[23][^>]*>\\s*${section}\\s*</h[23]>[\\s\\S]{0,5000}?(?=${endMarkers})`, 'i'),
   )?.[0]
   if (!sectionHtml) return []
 
   const fromLi = extractListItems(sectionHtml)
-  const cleaned = cleanMarhamListItems(fromLi.length > 0 ? fromLi : splitPlainList(sectionHtml))
-  return cleaned.filter((s) => !/^(dizziness|fever|cough)$/i.test(s) || section === 'Services')
+  return cleanMarhamListItems(fromLi.length > 0 ? fromLi : splitPlainList(sectionHtml))
 }
 
 function amPmTo24h(time: string): string {

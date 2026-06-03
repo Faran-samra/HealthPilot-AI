@@ -1,7 +1,9 @@
 /**
  * Harvest doctor profile URLs from public sitemaps → doctor_import_raw (pending review).
  *
- * Usage: npm run doctors:harvest -- --source marham [--limit 500]
+ * Usage:
+ *   npm run doctors:harvest -- --source marham --limit 6000
+ *   npm run doctors:harvest -- --source marham --limit 8000 --rps 3
  */
 
 import { createClient } from '@supabase/supabase-js'
@@ -9,6 +11,7 @@ import '../../../scripts/load-env.ts'
 import { getConnector, SITEMAP_SOURCES } from '../sources/registry.ts'
 import type { DoctorSource } from '../lib/normalize.ts'
 import { HamariWebConnector } from '../sources/hamariweb/connector.ts'
+import { MarhamConnector } from '../sources/marham/connector.ts'
 
 const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -26,6 +29,8 @@ async function main() {
 
   const source = (arg('--source') ?? 'marham') as DoctorSource
   const limit = parseInt(arg('--limit') ?? '1000', 10)
+  const rps = parseFloat(arg('--rps') ?? process.env.MARHAM_RPS ?? '2')
+  const noCityListings = process.argv.includes('--sitemap-only')
 
   if (!SITEMAP_SOURCES.includes(source)) {
     console.error(`Invalid source. Use: ${SITEMAP_SOURCES.join(', ')}`)
@@ -33,9 +38,9 @@ async function main() {
   }
 
   const supabase = createClient(url, key)
-  const connector = getConnector(source, supabase)
+  const connector = getConnector(source, supabase, { requestsPerSecond: rps })
 
-  console.log(`[harvest] source=${source} limit=${limit}`)
+  console.log(`[harvest] source=${source} limit=${limit} rps=${rps}`)
 
   let profileUrls: string[]
 
@@ -44,6 +49,11 @@ async function main() {
     const fromSitemap = await hw.harvestSitemapUrls(Math.min(limit, 2000))
     const fromListings = await hw.harvestFromListings(limit)
     profileUrls = [...new Set([...fromSitemap, ...fromListings])].slice(0, limit)
+  } else if (source === 'marham') {
+    const marham = connector as MarhamConnector
+    profileUrls = (
+      await marham.harvestAllProfileUrls(limit, { cityListings: !noCityListings })
+    ).slice(0, limit)
   } else {
     profileUrls = (await connector.harvestSitemapUrls(limit)).slice(0, limit)
   }

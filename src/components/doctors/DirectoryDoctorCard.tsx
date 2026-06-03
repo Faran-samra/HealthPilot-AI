@@ -9,12 +9,20 @@ import { formatPKR } from '@/utils/formatters'
 import { formatDoctorLocation, formatDoctorSpecialty } from '@/utils/doctorDisplay'
 import { getDisplayWorkplace } from '@/utils/doctorWorkplace'
 import { resolveDoctorGender } from '@/utils/doctorGender'
+import { useDoctorProfileStore } from '@/store/doctorProfileStore'
+import {
+  bookAppointmentPath,
+  doctorDetailPath,
+  saveDirectoryListScroll,
+} from '@/utils/doctorsListSearch'
 import type { DirectoryDoctor } from '@/types/doctorDirectory'
 
 interface Props {
   doctor: DirectoryDoctor
   /** When true, show km from user (Near Me search). */
   showDistance?: boolean
+  /** Serialized ?city=…&specialty=… so back from profile keeps filters. */
+  listSearchQuery?: string
 }
 
 function verificationLabel(
@@ -31,15 +39,24 @@ function sourceLabel(source: DirectoryDoctor['source'], t: (k: string) => string
   return t(key)
 }
 
-export function DirectoryDoctorCard({ doctor, showDistance = false }: Props) {
+export function DirectoryDoctorCard({
+  doctor,
+  showDistance = false,
+  listSearchQuery,
+}: Props) {
   const { t } = useTranslation()
+  const prefetchProfile = useDoctorProfileStore((s) => s.prefetch)
   const vLabel = verificationLabel(doctor.verification_status, t)
   const workplace = getDisplayWorkplace(doctor)
   const locationLine = formatDoctorLocation(doctor)
   const displayGender = resolveDoctorGender(doctor.gender, doctor.full_name)
 
   return (
-    <Card className="overflow-hidden transition-shadow hover:shadow-md">
+    <Card
+      className="overflow-hidden transition-shadow hover:shadow-md"
+      onMouseEnter={() => prefetchProfile(doctor.id)}
+      onFocus={() => prefetchProfile(doctor.id)}
+    >
       <CardContent className="p-5">
         <div className="mb-3 flex items-start justify-between gap-2">
           <div className="min-w-0">
@@ -104,8 +121,20 @@ export function DirectoryDoctorCard({ doctor, showDistance = false }: Props) {
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <Link to={`/doctors/${doctor.id}`}>
+          <Link
+            to={doctorDetailPath(doctor.id, listSearchQuery)}
+            state={{ directoryDoctor: doctor }}
+            onClick={saveDirectoryListScroll}
+          >
             <Button size="sm">{t('directory.viewProfile')}</Button>
+          </Link>
+          <Link
+            to={bookAppointmentPath(doctor.id, listSearchQuery)}
+            onClick={saveDirectoryListScroll}
+          >
+            <Button size="sm" variant="secondary">
+              {t('doctors.bookAppointment')}
+            </Button>
           </Link>
           {doctor.phone && (
             <a href={`tel:${doctor.phone}`}>

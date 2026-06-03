@@ -6,7 +6,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import '../../../scripts/load-env.ts'
-import { isGarbageDisplayText } from '../lib/sanitize.ts'
+import { isGarbageDisplayText, isGarbageDoctorName } from '../lib/sanitize.ts'
 
 const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -46,8 +46,10 @@ async function main() {
 
     const valid =
       Boolean(norm?.full_name && norm.full_name.length > 3) &&
+      !isGarbageDoctorName(norm?.full_name) &&
       Boolean(norm?.specialty_slug) &&
       Boolean(norm?.city_slug) &&
+      !['dr', 'area', 'prof', 'assoc', 'asst'].includes(norm?.specialty_slug ?? '') &&
       !isGarbageDisplayText(norm?.specialty)
 
     if (valid) {

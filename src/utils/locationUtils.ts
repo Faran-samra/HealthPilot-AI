@@ -1,5 +1,6 @@
 import { PAKISTAN_CITIES, CITY_CENTERS, type PakistanCity } from './constants'
 import type { Profile } from '@/lib/database.types'
+import { getStoredDoctorsListSearch } from './doctorsListSearch'
 
 export interface ResolvedSearchLocation {
   citySlug: string
@@ -45,16 +46,28 @@ export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: numb
 
 /** Pick the nearest supported Pakistan city for a GPS point (for labels & fallbacks). */
 export function nearestCitySlug(lat: number, lng: number): string {
-  let best = 'lahore'
-  let bestDist = Infinity
-  for (const [slug, center] of Object.entries(CITY_CENTERS)) {
-    const d = haversineKm(lat, lng, center.lat, center.lng)
-    if (d < bestDist) {
-      bestDist = d
-      best = slug
-    }
-  }
-  return best
+  return nearbyCitySlugs(lat, lng, { maxCities: 1 })[0] ?? 'lahore'
+}
+
+/**
+ * City slugs whose centers are within maxDistanceKm of the user (nearest first).
+ * Used for Near Me when a single city has too few doctors.
+ */
+export function nearbyCitySlugs(
+  lat: number,
+  lng: number,
+  options: { maxCities?: number; maxDistanceKm?: number } = {}
+): string[] {
+  const { maxCities = 5, maxDistanceKm = 95 } = options
+  return Object.entries(CITY_CENTERS)
+    .map(([slug, center]) => ({
+      slug,
+      d: haversineKm(lat, lng, center.lat, center.lng),
+    }))
+    .filter((c) => c.d <= maxDistanceKm)
+    .sort((a, b) => a.d - b.d)
+    .slice(0, maxCities)
+    .map((c) => c.slug)
 }
 
 export interface CareLocation {
@@ -92,13 +105,24 @@ export function resolveCareLocation(
   }
 }
 
-/** Pick city/area for doctor search from URL params, profile, or default. */
+/** Pick city/area for doctor search from URL params, session, profile, or default. */
 export function resolveSearchLocation(
   searchParams: URLSearchParams,
   profile?: Profile | null
 ): ResolvedSearchLocation {
+  const storedCity = (() => {
+    try {
+      const q = getStoredDoctorsListSearch()
+      if (!q) return null
+      return normalizeCitySlug(new URLSearchParams(q).get('city'))
+    } catch {
+      return null
+    }
+  })()
+
   const citySlug =
     normalizeCitySlug(searchParams.get('city')) ??
+    storedCity ??
     normalizeCitySlug(profile?.city) ??
     'lahore'
 

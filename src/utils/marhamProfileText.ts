@@ -34,6 +34,8 @@ export function cleanMarhamListItems(items: string[] | undefined): string[] {
     for (const part of parts.length > 0 ? parts : [raw.trim()]) {
       const s = part.replace(/\s+/g, ' ').trim()
       if (s.length < 2 || s.length > 80) continue
+      if (/[<>]|<!--|-->|^\s*--\s*$/i.test(s)) continue
+      if (/^services\s*(-->|<!--)/i.test(s)) continue
       if (/^(services|diseases|symptoms|interest|faqs)$/i.test(s)) continue
       if (isMarhamBoilerplateStatement(s)) continue
       const key = s.toLowerCase()

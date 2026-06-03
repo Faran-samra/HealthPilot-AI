@@ -4,7 +4,7 @@ import {
   normalizeSpecialty,
   type NormalizedDoctorRow,
 } from '../../lib/normalize.ts'
-import { cleanDisplayText, isGarbageDisplayText } from '../../lib/sanitize.ts'
+import { cleanDisplayText, isGarbageDisplayText, isGarbageDoctorName } from '../../lib/sanitize.ts'
 import {
   extractMarhamConsultationFee,
   extractFirstH1,
@@ -24,6 +24,14 @@ import {
   resolveMarhamDoctorCity,
 } from '../../../../src/utils/pakistanCityExtract.ts'
 import { buildMarhamAvailability } from '../../lib/marhamAvailability.ts'
+import { MARHAM_LISTING_CITY_SLUGS } from '../../lib/marham-cities.ts'
+import { parseSitemapXml } from '../../lib/http-client.ts'
+import {
+  isMarhamDoctorProfileUrl,
+  nameFromMarhamProfileSlug,
+  parseMarhamProfilePath,
+  specialtyHintFromPathSegment,
+} from '../../lib/marhamUrlParse.ts'
 import { BaseSourceConnector } from '../base-connector.ts'
 import type { ConnectorConfig } from '../../lib/types.ts'
 
@@ -54,17 +62,131 @@ export class MarhamConnector extends BaseSourceConnector {
     return [
       'https://www.marham.pk/sitemap_doctors.xml',
       'https://www.marham.pk/sitemap_doctors_1.xml',
+      'https://www.marham.pk/sitemap_doctors_2.xml',
+      'https://www.marham.pk/sitemap_doctors_3.xml',
+      'https://www.marham.pk/sitemap_doctors_4.xml',
     ]
   }
 
-  isProfileUrl(url: string): boolean {
-    try {
-      const u = new URL(url)
-      if (!u.hostname.includes('marham.pk')) return false
-      return /\/doctors\//i.test(u.pathname) && !u.search
-    } catch {
-      return false
+  /** Discover extra doctor sitemap shards from Marham sitemap index. */
+  async discoverDoctorSitemapRoots(): Promise<string[]> {
+    const found = new Set<string>(this.getSitemapRoots())
+    const indexCandidates = [
+      'https://www.marham.pk/sitemap.xml',
+      'https://www.marham.pk/sitemap_index.xml',
+    ]
+
+    for (const indexUrl of indexCandidates) {
+      const { ok, text } = await this.http.fetchText(indexUrl)
+      if (!ok) continue
+      const { sitemapIndexes } = parseSitemapXml(text)
+      for (const loc of sitemapIndexes) {
+        if (/sitemap_doctors/i.test(loc)) found.add(loc)
+      }
     }
+
+    return [...found]
+  }
+
+  /** Common specialties — listing pages list dozens of doctors per city (incl. small towns). */
+  static readonly HARVEST_SPECIALTY_SLUGS = [
+    'general-physician',
+    'gynecologist',
+    'dermatologist',
+    'pediatrician',
+    'dentist',
+    'cardiologist',
+    'ent-specialist',
+    'orthopedic-surgeon',
+    'urologist',
+    'psychiatrist',
+    'general-surgeon',
+    'pulmonologist',
+    'neurologist',
+    'nutritionist',
+    'eye-specialist',
+  ] as const
+
+  listingSeeds(): string[] {
+    const seeds = new Set<string>()
+    for (const city of MARHAM_LISTING_CITY_SLUGS) {
+      seeds.add(`https://www.marham.pk/doctors/${city}`)
+      for (const specialty of MarhamConnector.HARVEST_SPECIALTY_SLUGS) {
+        seeds.add(`https://www.marham.pk/doctors/${city}/${specialty}`)
+      }
+    }
+    return [...seeds]
+  }
+
+  extractProfileLinks(html: string): string[] {
+    const links = new Set<string>()
+    const patterns = [
+      /href="(https:\/\/www\.marham\.pk\/doctors\/[^"?#]+)"/gi,
+      /href="(\/doctors\/[^"?#]+)"/gi,
+    ]
+    for (const re of patterns) {
+      let m: RegExpExecArray | null
+      while ((m = re.exec(html)) !== null) {
+        let href = m[1].trim()
+        if (href.startsWith('/')) href = `https://www.marham.pk${href}`
+        if (isMarhamDoctorProfileUrl(href)) links.add(href.split('?')[0])
+      }
+    }
+    return [...links]
+  }
+
+  /** City directory pages — covers Punjab/smaller cities not always in early sitemap pages. */
+  async harvestFromCityListings(maxProfiles = 8000): Promise<string[]> {
+    const profiles: string[] = []
+    const seeds = this.listingSeeds()
+
+    for (const seed of seeds) {
+      if (profiles.length >= maxProfiles) break
+      const { ok, text } = await this.http.fetchText(seed)
+      if (!ok) continue
+      for (const url of this.extractProfileLinks(text)) {
+        profiles.push(url)
+        if (profiles.length >= maxProfiles) break
+      }
+    }
+
+    return [...new Set(profiles)]
+  }
+
+  async harvestAllProfileUrls(maxUrls: number, options?: { cityListings?: boolean }): Promise<string[]> {
+    const useCityListings = options?.cityListings !== false
+    const sitemapBudget = useCityListings ? Math.floor(maxUrls * 0.7) : maxUrls
+    const listingBudget = maxUrls - sitemapBudget
+
+    const roots = await this.discoverDoctorSitemapRoots()
+    const fromSitemap: string[] = []
+    const { fetchAllSitemapUrls } = await import('../../lib/http-client.ts')
+
+    for (const root of roots) {
+      if (fromSitemap.length >= sitemapBudget) break
+      const urls = await fetchAllSitemapUrls(
+        this.http,
+        root,
+        (u) => this.filterSitemapUrl(u),
+        sitemapBudget - fromSitemap.length,
+      )
+      fromSitemap.push(...urls)
+    }
+
+    let fromListings: string[] = []
+    if (useCityListings && listingBudget > 0) {
+      fromListings = await this.harvestFromCityListings(listingBudget)
+    }
+
+    return [...new Set([...fromSitemap, ...fromListings])].slice(0, maxUrls)
+  }
+
+  override async harvestSitemapUrls(maxUrls = 10_000): Promise<string[]> {
+    return this.harvestAllProfileUrls(maxUrls)
+  }
+
+  isProfileUrl(url: string): boolean {
+    return isMarhamDoctorProfileUrl(url)
   }
 
   externalIdFromUrl(url: string): string {
@@ -72,8 +194,17 @@ export class MarhamConnector extends BaseSourceConnector {
     return path.split('/').filter(Boolean).pop() ?? path
   }
 
-  /** e.g. dr-ahmed-hassan-cardiologist-lahore */
+  /** Path: /doctors/{city}/{specialty}/{slug} — legacy: dr-name-specialty-city */
   parseSlugMeta(url: string): { specialtyHint: string; cityHint: string; nameHint: string } {
+    const path = parseMarhamProfilePath(url)
+    if (path) {
+      return {
+        cityHint: path.citySlug,
+        specialtyHint: specialtyHintFromPathSegment(path.specialtySlug),
+        nameHint: nameFromMarhamProfileSlug(path.profileSlug),
+      }
+    }
+
     const slug = this.externalIdFromUrl(url)
     const parts = slug.split('-').filter(Boolean)
     const citySlug = parseCityFromMarhamSlug(slug)
@@ -87,9 +218,11 @@ export class MarhamConnector extends BaseSourceConnector {
   parseProfileFromUrl(url: string): NormalizedDoctorRow | null {
     const { specialtyHint, cityHint, nameHint } = this.parseSlugMeta(url)
     const { slug: specialty_slug, label: specialty } = normalizeSpecialty(specialtyHint)
+    const full_name = normalizeDoctorName(nameHint || specialtyHint)
+    if (isGarbageDoctorName(full_name)) return null
 
     return {
-      full_name: normalizeDoctorName(nameHint || specialtyHint),
+      full_name,
       specialty,
       specialty_slug,
       city: cityHint,
@@ -148,15 +281,25 @@ export class MarhamConnector extends BaseSourceConnector {
       cleanDisplayText(ogFields.name, 80) ??
       cleanDisplayText(h1, 80) ??
       cleanDisplayText(title?.split('|')[0], 80)
-    const name = nameRaw && !isGarbageDisplayText(nameRaw) ? nameRaw : fromUrl.full_name
+    let name = nameRaw && !isGarbageDisplayText(nameRaw) ? nameRaw : fromUrl.full_name
+    if (isGarbageDoctorName(name)) {
+      const path = parseMarhamProfilePath(url)
+      if (path) {
+        const fromSlug = nameFromMarhamProfileSlug(path.profileSlug)
+        if (fromSlug) name = normalizeDoctorName(fromSlug)
+      }
+    }
+    if (isGarbageDoctorName(name)) return null
 
     const pmdc = html.match(/PMDC[^0-9]*(\d{4,}[-/]?\d*)/i)?.[1]
     const { slug, label } = this.extractSpecialtyFromHtml(html, url)
 
     const practice = extractMarhamPractice(html)
     const profileSlug = this.externalIdFromUrl(url)
+    const pathCity = parseMarhamProfilePath(url)?.citySlug
     const { city, city_slug, province } = resolveMarhamDoctorCity({
       profileSlug,
+      urlCitySlug: pathCity,
       jsonCity: extractJsonField(html, 'city') ?? extractJsonField(html, 'city_name'),
       areaLine: practice.address ?? practice.area,
     })

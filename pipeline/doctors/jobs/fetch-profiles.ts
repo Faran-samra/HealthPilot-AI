@@ -1,14 +1,17 @@
 /**
  * Fetch public profile pages → normalized_payload on doctor_import_raw.
  *
- * Usage: npm run doctors:fetch -- --source marham [--limit 100]
+ * Usage:
+ *   npm run doctors:fetch -- --source marham [--limit 100]
+ *   npm run doctors:fetch -- --source marham --limit 500 --concurrency 8 --rps 4
  */
 
 import { createClient } from '@supabase/supabase-js'
 import '../../../scripts/load-env.ts'
+import { mapPool } from '../lib/async-pool.ts'
+import { isGarbageDoctorName } from '../lib/sanitize.ts'
 import { getConnector } from '../sources/registry.ts'
 import type { DoctorSource } from '../lib/normalize.ts'
-
 const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY
 
@@ -25,9 +28,11 @@ async function main() {
 
   const source = (arg('--source') ?? 'marham') as DoctorSource
   const limit = parseInt(arg('--limit') ?? '50', 10)
+  const concurrency = parseInt(arg('--concurrency') ?? process.env.MARHAM_FETCH_CONCURRENCY ?? '6', 10)
+  const rps = parseFloat(arg('--rps') ?? process.env.MARHAM_RPS ?? '3')
 
   const supabase = createClient(url, key)
-  const connector = getConnector(source, supabase)
+  const connector = getConnector(source, supabase, { requestsPerSecond: rps })
 
   const { data: pending, error } = await supabase
     .from('doctor_import_raw')
@@ -40,14 +45,22 @@ async function main() {
 
   if (error) throw error
 
+  const rows = pending ?? []
+  if (rows.length === 0) {
+    console.log(`[fetch] source=${source} nothing pending (run harvest first)`)
+    return
+  }
+
+  console.log(`[fetch] source=${source} rows=${rows.length} concurrency=${concurrency} rps=${rps}`)
+
   let ok = 0
   let fail = 0
 
-  for (const row of pending ?? []) {
-    if (!row.source_url) continue
+  await mapPool(rows, concurrency, async (row) => {
+    if (!row.source_url) return
     const result = await connector.fetchProfile(row.source_url)
 
-    if (result.normalized) {
+    if (result.normalized && !isGarbageDoctorName(result.normalized.full_name)) {
       await supabase
         .from('doctor_import_raw')
         .update({
@@ -71,7 +84,7 @@ async function main() {
         .eq('id', row.id)
       fail++
     }
-  }
+  })
 
   console.log(`[fetch] source=${source} ok=${ok} fail=${fail}`)
 }

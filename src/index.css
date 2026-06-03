@@ -78,3 +78,24 @@
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
   }
 }
+
+/** Gradient headlines without clipping descenders (g, y, p). */
+@layer utilities {
+  .text-gradient-hero {
+    display: inline-block;
+    width: 100%;
+    padding-bottom: 0.14em;
+    line-height: 1.25;
+    background-image: linear-gradient(
+      90deg,
+      var(--primary) 0%,
+      oklch(0.52 0.12 175) 50%,
+      var(--primary) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+}
