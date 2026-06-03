@@ -59,8 +59,12 @@ function pickField(
 }
 
 /** One-line location for facility cards (matches app language). */
+type FacilityLocationFields = Pick<DiscoveryDoctor, 'area' | 'city_slug' | 'address'> & {
+  city?: string | null
+}
+
 export function formatFacilityShortLocation(
-  facility: Pick<DiscoveryDoctor, 'area' | 'city' | 'city_slug' | 'address'>,
+  facility: FacilityLocationFields,
   language: string
 ): string {
   const city = facility.city_slug
@@ -78,7 +82,7 @@ export function formatFacilityShortLocation(
 
 /** Secondary address line — hidden when only Urdu script and UI is English. */
 export function formatFacilityDetailAddress(
-  facility: Pick<DiscoveryDoctor, 'address' | 'area' | 'city_slug'>,
+  facility: FacilityLocationFields,
   language: string
 ): string | null {
   if (!facility.address?.trim()) return null

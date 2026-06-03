@@ -12,7 +12,6 @@ import { createAppointment, createGuestAppointment } from '@/services/bookingSer
 import { useAuthStore } from '@/store/authStore'
 import { useSymptomStore } from '@/store/symptomStore'
 import { formatPKR } from '@/utils/formatters'
-import { getDisplayWorkplace } from '@/utils/doctorWorkplace'
 import {
   getDoctorWhatsAppLink,
   getMarhamInquiryMessage,
@@ -62,7 +61,6 @@ export default function BookAppointment() {
   }, [doctor, date, weeklyTimings.length])
 
   const { slots, dayTiming, hasWeeklySchedule } = slotResult
-  const workplace = doctor ? getDisplayWorkplace(doctor) : null
   const marhamBookingUrl = doctor ? getMarhamCallcenterUrl(doctor.source_url) : null
   const usesMarhamBooking = Boolean(doctor && isMarhamDoctor(doctor) && marhamBookingUrl)
   const whatsappInquiryLink =

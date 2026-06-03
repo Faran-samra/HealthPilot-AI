@@ -1,8 +1,8 @@
-import { isKnownCitySlug, parseCityFromMarhamSlug } from '../../../src/utils/pakistanCityExtract.ts'
+import { parseCityFromMarhamSlug } from '../../../src/utils/pakistanCityExtract.ts'
 
 /** Strip honorific prefixes from profile slug before building display name. */
 const PROFILE_SLUG_PREFIX =
-  /^(?:(?:asst|assoc|assistant|associate)-prof-)?(?:(?:asst|assoc|assistant|associate)-)?(?:(?:dr|prof)\-)?/i
+  /^(?:(?:asst|assoc|assistant|associate)-prof-)?(?:(?:asst|assoc|assistant|associate)-)?(?:(?:dr|prof)-)?/i
 
 const NON_PROFILE_SLUG = /^(area-|hospital-|clinic-|specialit|best-|top-|\d+)/i
 

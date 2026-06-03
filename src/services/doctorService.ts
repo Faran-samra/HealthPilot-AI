@@ -12,7 +12,6 @@ import { annotateNearMeDistances } from '@/utils/doctorGeo'
 import {
   getCityCenterCoords,
   nearbyCitySlugs,
-  nearestCitySlug,
   normalizeCitySlug,
 } from '@/utils/locationUtils'
 import { matchesGenderFilter } from '@/utils/doctorGender'

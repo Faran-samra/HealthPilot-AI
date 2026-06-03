@@ -105,7 +105,7 @@ export class HamariWebConnector extends BaseSourceConnector {
   }
 
   /** Extract profile links from a city listing HTML page. */
-  extractProfileLinks(html: string, baseUrl: string): string[] {
+  extractProfileLinks(html: string, _baseUrl: string): string[] {
     const links = new Set<string>()
     const re = /href="(\/[^"]*_doc\d+[^"]*|https:\/\/health\.hamariweb\.com[^"]*_doc\d+[^"]*)"/gi
     let m: RegExpExecArray | null

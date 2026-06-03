@@ -59,7 +59,7 @@ export function extractConditionFromHtml(url: string, html: string): NhsStructur
   const condition_name = cleanText(main.find('h1').first().text()) || slug.replace(/-/g, ' ')
 
   const sections: NhsSections = {}
-  let overviewParts: string[] = []
+  const overviewParts: string[] = []
 
   const h1 = main.find('h1').first()
   if (h1.length) {

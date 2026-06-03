@@ -297,7 +297,6 @@ export function extractMarhamProfileDetails(
   practice_timings?: { day: string; start: string; end: string }[]
   marham_whatsapp?: string
 } {
-  const content = stripNonContentHtml(html)
   const out: {
     professional_statement?: string
     services?: string[]

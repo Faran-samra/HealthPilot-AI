@@ -99,21 +99,23 @@ function toKpi(def: IndicatorDef, raw: GhoLatestValue | null): KpiItem | null {
 async function buildPayload(): Promise<WhoPakistanPayload> {
   const kpiMap = await fetchIndicatorBundle(KPI_INDICATORS)
 
-  let kpis = KPI_INDICATORS.map((d) => toKpi(d, kpiMap.get(d.key) ?? null)).filter(
+  const baseKpis = KPI_INDICATORS.map((d) => toKpi(d, kpiMap.get(d.key) ?? null)).filter(
     (k): k is KpiItem => k != null,
   )
 
-  if (!kpis.some((k) => k.key === 'population')) {
-    const fb = WHO_PAKISTAN_POPULATION_FALLBACK
-    kpis.push({
-      key: fb.key,
-      label: fb.label,
-      unit: fb.unit,
-      year: fb.year,
-      value: fb.value,
-      displayValue: fb.displayValue,
-    })
-  }
+  const kpis = !baseKpis.some((k) => k.key === 'population')
+    ? [
+        ...baseKpis,
+        {
+          key: WHO_PAKISTAN_POPULATION_FALLBACK.key,
+          label: WHO_PAKISTAN_POPULATION_FALLBACK.label,
+          unit: WHO_PAKISTAN_POPULATION_FALLBACK.unit,
+          year: WHO_PAKISTAN_POPULATION_FALLBACK.year,
+          value: WHO_PAKISTAN_POPULATION_FALLBACK.value,
+          displayValue: WHO_PAKISTAN_POPULATION_FALLBACK.displayValue,
+        },
+      ]
+    : baseKpis
 
   const leadingCauses: CauseItem[] = WHO_LEADING_CAUSES_GHE_2021.map((c) => ({
     key: c.key,

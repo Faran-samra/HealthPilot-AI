@@ -94,7 +94,7 @@ export async function mergeImportsToDoctors(
     importsByKey.set(k, list)
   }
 
-  const groups = dedupeDoctorGroups(rows.map(({ import_id: _, ...r }) => r))
+  const groups = dedupeDoctorGroups(rows.map(({ import_id: _importId, ...r }) => r))
   let merged = 0
   let published = 0
   let errors = 0

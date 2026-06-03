@@ -51,7 +51,6 @@ export function parseCityFromMarhamSlug(slug: string): string | null {
   for (let n = Math.min(3, parts.length - 1); n >= 1; n--) {
     const candidate = parts.slice(-n).join('-')
     if (CITY_SLUG_SET.has(candidate)) return candidate
-    if (n >= 2 && candidate.length >= 4) return candidate
   }
 
   const last = parts[parts.length - 1]

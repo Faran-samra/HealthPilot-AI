@@ -28,7 +28,7 @@ export abstract class BaseSourceConnector {
   abstract parseProfileHtml(url: string, html: string): NormalizedDoctorRow | null
 
   /** Optional: enrich from URL path when HTML fetch fails. */
-  parseProfileFromUrl(url: string): NormalizedDoctorRow | null {
+  parseProfileFromUrl(_url: string): NormalizedDoctorRow | null {
     return null
   }
 
