@@ -1,6 +1,11 @@
 import { supabase } from '@/lib/supabase'
 import type { AIAnalysisResult, Json } from '@/lib/database.types'
-import type { ChatMessage, SymptomAnalysisExtended, SymptomChatResponse } from '@/types/symptomChat'
+import type {
+  ChatMessage,
+  QuickTriageResult,
+  SymptomAnalysisExtended,
+  SymptomChatResponse,
+} from '@/types/symptomChat'
 import { FunctionsHttpError } from '@supabase/supabase-js'
 
 async function readFunctionError(error: FunctionsHttpError): Promise<string> {
@@ -25,17 +30,35 @@ export interface SymptomChatParams {
   userGender?: string
   turnCount: number
   forceFinalize?: boolean
+  /** Client keyword triage — helps edge router pick Sonnet for emergencies */
+  clientTriage?: Pick<QuickTriageResult, 'severity' | 'isEmergency' | 'matchedKeywords'> | null
+}
+
+function lastAssistantQuickSeverity(
+  messages: ChatMessage[]
+): ChatMessage['quickSeverity'] | undefined {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i]
+    if (m.role === 'assistant' && m.quickSeverity) return m.quickSeverity
+  }
+  return undefined
 }
 
 export async function sendSymptomChat(params: SymptomChatParams): Promise<SymptomChatResponse> {
   const { data, error } = await supabase.functions.invoke<SymptomChatResponse>('symptom-chat', {
     body: {
-      messages: params.messages.map(({ role, content }) => ({ role, content })),
+      messages: params.messages.map(({ role, content, quickSeverity }) => ({
+        role,
+        content,
+        ...(quickSeverity ? { quickSeverity } : {}),
+      })),
       language: params.language,
       userAge: params.userAge,
       userGender: params.userGender,
       turnCount: params.turnCount,
       forceFinalize: params.forceFinalize ?? false,
+      clientTriage: params.clientTriage ?? undefined,
+      lastQuickSeverity: lastAssistantQuickSeverity(params.messages) ?? undefined,
     },
   })
 

@@ -6,13 +6,19 @@ import { SymptomActionCards } from '@/components/symptoms/SymptomActionCards'
 import { RecommendedDoctorsPanel } from '@/components/symptoms/RecommendedDoctorsPanel'
 import { RecommendedDirectoryDoctorsPanel } from '@/components/symptoms/RecommendedDirectoryDoctorsPanel'
 import { AnalysisFeedback } from '@/components/symptoms/AnalysisFeedback'
-import type { SymptomAnalysisExtended } from '@/types/symptomChat'
+import type { RagSourceCitation, SymptomAnalysisExtended } from '@/types/symptomChat'
 import type { CareLocation } from '@/utils/locationUtils'
 import { SEVERITY_CONFIG } from '@/utils/constants'
+import {
+  dedupeRagSources,
+  formatRagCitationSubtitle,
+  formatRagCitationTitle,
+} from '@/utils/ragCitationDisplay'
 import { cn } from '@/lib/utils'
 
 interface AnalysisResultPanelProps {
   analysis: SymptomAnalysisExtended
+  ragSources?: RagSourceCitation[]
   careLocation: CareLocation | null
   locationLoading?: boolean
   area?: string | null
@@ -23,6 +29,7 @@ interface AnalysisResultPanelProps {
 
 export function AnalysisResultPanel({
   analysis,
+  ragSources = [],
   careLocation,
   locationLoading,
   area,
@@ -34,6 +41,7 @@ export function AnalysisResultPanel({
   const severityKey = analysis.severity_level
   const severity = SEVERITY_CONFIG[severityKey]
   const isEmergency = severityKey === 'emergency'
+  const displayRagSources = dedupeRagSources(ragSources)
 
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -82,6 +90,30 @@ export function AnalysisResultPanel({
           )}
         </CardContent>
       </Card>
+
+      {displayRagSources.length > 0 && (
+        <Card className="border-blue-200 bg-blue-50/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">{t('symptoms.ragSourcesTitle')}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 pt-0">
+            <p className="text-xs text-muted-foreground">{t('symptoms.ragSourcesHint')}</p>
+            <ul className="space-y-2 text-sm">
+              {displayRagSources.map((src, index) => (
+                <li
+                  key={`${formatRagCitationTitle(src)}-${index}`}
+                  className="rounded-md border border-blue-100 bg-white/70 px-3 py-2"
+                >
+                  <p className="font-medium leading-snug">{formatRagCitationTitle(src)}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {formatRagCitationSubtitle(src)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {showFullDetails && analysis.explanation && (
         <Card>

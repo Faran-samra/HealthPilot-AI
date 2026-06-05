@@ -1,8 +1,12 @@
 import { create } from 'zustand'
-import type { SymptomAnalysisExtended } from '@/types/symptomChat'
-import type { ChatMessage, SymptomCheckerPhase } from '@/types/symptomChat'
-import type { QuickTriageResult } from '@/types/symptomChat'
-import { createGreetingMessage } from '@/utils/symptomChatGreeting'
+import type {
+  ChatMessage,
+  QuickTriageResult,
+  RagSourceCitation,
+  SymptomAnalysisExtended,
+  SymptomCheckerPhase,
+} from '@/types/symptomChat'
+import { createGreetingMessage, getGreetingText } from '@/utils/symptomChatGreeting'
 
 interface SymptomStore {
   language: 'en' | 'ur'
@@ -15,6 +19,7 @@ interface SymptomStore {
   turnCount: number
   quickTriage: QuickTriageResult | null
   stagedSeverity: SymptomAnalysisExtended['severity_level'] | null
+  ragSources: RagSourceCitation[]
 
   setLanguage: (language: 'en' | 'ur') => void
   addMessage: (message: ChatMessage) => void
@@ -27,6 +32,7 @@ interface SymptomStore {
   incrementTurn: () => void
   setQuickTriage: (result: QuickTriageResult | null) => void
   setStagedSeverity: (severity: SymptomAnalysisExtended['severity_level'] | null) => void
+  setRagSources: (sources: RagSourceCitation[]) => void
   reset: (language?: 'en' | 'ur') => void
 }
 
@@ -41,6 +47,7 @@ export const useSymptomStore = create<SymptomStore>((set, get) => ({
   turnCount: 0,
   quickTriage: null,
   stagedSeverity: null,
+  ragSources: [],
 
   setLanguage: (language) =>
     set((s) => {
@@ -48,9 +55,12 @@ export const useSymptomStore = create<SymptomStore>((set, get) => ({
         s.messages.length === 1 &&
         s.messages[0].role === 'assistant' &&
         s.messages[0].id === 'greeting'
+      const greetingContent = getGreetingText(language)
       return {
         language,
-        messages: onlyGreeting ? [createGreetingMessage(language)] : s.messages,
+        messages: onlyGreeting
+          ? [{ ...createGreetingMessage(language), content: greetingContent }]
+          : s.messages,
       }
     }),
 
@@ -64,6 +74,7 @@ export const useSymptomStore = create<SymptomStore>((set, get) => ({
   incrementTurn: () => set((s) => ({ turnCount: s.turnCount + 1 })),
   setQuickTriage: (quickTriage) => set({ quickTriage }),
   setStagedSeverity: (stagedSeverity) => set({ stagedSeverity }),
+  setRagSources: (ragSources) => set({ ragSources }),
 
   reset: (language) => {
     const lang = language ?? get().language
@@ -77,6 +88,7 @@ export const useSymptomStore = create<SymptomStore>((set, get) => ({
       turnCount: 0,
       quickTriage: null,
       stagedSeverity: null,
+      ragSources: [],
     })
   },
 }))

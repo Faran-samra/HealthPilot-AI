@@ -31,8 +31,8 @@ const SPECIALTY_FILTER_GROUPS: Record<string, { slugs: string[]; keywords: strin
     keywords: ['neurolog', 'neurosur'],
   },
   ent: {
-    slugs: ['ent', 'ent_surgeon', 'otolaryngologist', 'otolaryngology'],
-    keywords: ['ent ', 'ent,', 'ear nose', 'otolaryng'],
+    slugs: ['ent', 'ent_surgeon', 'ent_specialist', 'otolaryngologist', 'otolaryngology'],
+    keywords: ['ent specialist', 'otolaryng', 'ear nose', 'throat specialist', ' ent '],
   },
   ophthalmology: {
     slugs: ['ophthalmology', 'ophthalmologist'],
@@ -69,6 +69,10 @@ export function getSpecialtyFilterGroup(filterSlug: string) {
   )
 }
 
+function isDentistDoctor(slug: string, label: string): boolean {
+  return slug === 'dentist' || slug.includes('dentist') || /\bdentist\b/.test(label)
+}
+
 export function doctorMatchesSpecialtyFilter(
   doctor: Pick<Doctor, 'specialty' | 'specialty_slug'>,
   filterSlug: string | undefined
@@ -79,9 +83,20 @@ export function doctorMatchesSpecialtyFilter(
   const label = (doctor.specialty ?? '').toLowerCase()
   const { slugs, keywords } = getSpecialtyFilterGroup(filterSlug)
 
+  if (filterSlug === 'ent' && isDentistDoctor(slug, label)) return false
+
   if (slugs.includes(slug)) return true
-  if (slug === filterSlug || slug.startsWith(`${filterSlug}_`) || slug.includes(filterSlug)) {
-    return true
+  if (slug === filterSlug || slug.startsWith(`${filterSlug}_`)) return true
+
+  // Short slugs like "ent" must not match "dentist" via substring includes.
+  if (filterSlug.length > 3 && slug.includes(filterSlug)) return true
+
+  if (filterSlug === 'ent') {
+    return (
+      slug === 'ent' ||
+      slug.endsWith('_ent') ||
+      keywords.some((kw) => label.includes(kw))
+    )
   }
 
   return keywords.some((kw) => label.includes(kw))

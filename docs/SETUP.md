@@ -27,7 +27,10 @@ cp .env.example .env
 |----------|--------|---------|
 | `VITE_SUPABASE_URL` | `.env` | Frontend Supabase client |
 | `VITE_SUPABASE_ANON_KEY` | `.env` | Public anon key |
-| `ANTHROPIC_API_KEY` | Supabase secret | Edge functions only |
+| `OPENAI_API_KEY` | Supabase secret | Symptom LLM default (gpt-4o-mini) |
+| `GEMINI_API_KEY` | Supabase secret | From [Google AI Studio](https://aistudio.google.com/) — `gemini-2.5-flash` |
+| `GROQ_API_KEY` | Supabase secret | Llama 3.1 API fallback |
+| `ANTHROPIC_API_KEY` | Supabase secret | Claude for high-risk / escalation |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase secret + pipeline `.env` | Traces, doctor ingest |
 | `HUGGINGFACE_API_KEY` | Optional | RAG embeddings |
 
@@ -47,6 +50,9 @@ Migrations `001`–`014` cover: core schema, PostGIS, NHS/RAG, doctor directory,
 ### 5. Edge functions
 
 ```bash
+npx supabase secrets set OPENAI_API_KEY=sk-...
+npx supabase secrets set GEMINI_API_KEY=...
+npx supabase secrets set GROQ_API_KEY=gsk_...
 npx supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 npx supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 

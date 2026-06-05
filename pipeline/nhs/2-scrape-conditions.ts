@@ -5,11 +5,25 @@
 import { fetchAndExtract } from './lib/extract.ts'
 import { sleep, writeText } from './lib/fs.ts'
 import { ensureNhsDirs, NHS_DATA, parseLimit } from './lib/paths.ts'
+import { exists } from './lib/fs.ts'
 import { readText } from './lib/fs.ts'
 
 const RATE_MS = 1200
 
 await ensureNhsDirs()
+if (!(await exists(NHS_DATA.urls))) {
+  console.error(
+    `Missing ${NHS_DATA.urls}\n` +
+      'Run the sitemap step first:\n' +
+      '  npm run nhs:sitemap\n' +
+      'Then scrape:\n' +
+      '  npm run nhs:scrape\n' +
+      'Or test with 5 conditions:\n' +
+      '  npm run nhs:sample'
+  )
+  process.exit(1)
+}
+
 const limit = parseLimit(process.argv.slice(2))
 const { urls } = JSON.parse(await readText(NHS_DATA.urls)) as { urls: string[] }
 const toScrape = limit ? urls.slice(0, limit) : urls

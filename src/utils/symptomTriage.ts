@@ -9,6 +9,12 @@ const EMERGENCY_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /severe bleeding|heavy bleeding|blood vomiting/i, label: 'Severe bleeding' },
   { pattern: /suicid|self harm|kill myself/i, label: 'Mental health emergency' },
   { pattern: /seizure|convulsion|fits/i, label: 'Seizure' },
+  { pattern: /anaphyla|allergic reaction|severe allergy/i, label: 'Allergic reaction' },
+  {
+    pattern:
+      /swelling.*(lip|face|throat)|lip.*swell|face.*swell|difficulty breathing.*(peanut|nut|food|eat)/i,
+    label: 'Allergic reaction',
+  },
 ]
 
 const SEVERE_PATTERNS: Array<{ pattern: RegExp; label: string }> = [

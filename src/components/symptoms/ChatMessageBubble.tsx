@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import type { ChatMessage } from '@/types/symptomChat'
 import { SEVERITY_CONFIG } from '@/utils/constants'
+import { messageTextDirection } from '@/utils/romanUrdu'
 
 interface ChatMessageBubbleProps {
   message: ChatMessage
@@ -39,7 +40,7 @@ export function ChatMessageBubble({ message, language }: ChatMessageBubbleProps)
               : 'rounded-tl-md border border-border/60 bg-card text-foreground',
             isGreeting && 'border-primary/20 bg-gradient-to-br from-primary/5 to-card'
           )}
-          dir={!isUser && language === 'ur' ? 'rtl' : isUser && language === 'ur' ? 'rtl' : 'ltr'}
+          dir={messageTextDirection(message.content, language)}
         >
           {message.content}
         </div>

@@ -30,10 +30,22 @@ export interface SymptomAnalysisExtended extends AIAnalysisResult {
   brief_summary?: string
 }
 
+export interface RagSourceCitation {
+  title: string
+  source: string
+  section: string | null
+  similarity: number
+}
+
 export interface SymptomChatAnalysis {
   type: 'analysis'
   analysis: SymptomAnalysisExtended
   trace_id?: string
+  _rag?: {
+    sources: RagSourceCitation[]
+    status?: 'ok' | 'none'
+    method?: 'vector' | 'slug_fallback' | 'none'
+  }
 }
 
 export type SymptomChatResponse = SymptomChatFollowUp | SymptomChatAnalysis

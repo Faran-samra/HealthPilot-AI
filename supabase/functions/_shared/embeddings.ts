@@ -63,7 +63,23 @@ function toSentenceEmbedding(raw: unknown): number[] {
   throw new Error('Unexpected HF shape')
 }
 
-async function embedHfQuery(text: string): Promise<{ vec: number[] | null; reason?: string; status?: number }> {
+function isEdgeRuntime(): boolean {
+  return Boolean(Deno.env.get('SUPABASE_URL'))
+}
+
+function hfMaxAttempts(): number {
+  return isEdgeRuntime() ? 2 : 6
+}
+
+function hfRetryWaitMs(attempt: number): number {
+  const cap = isEdgeRuntime() ? 2000 : 30_000
+  return Math.min(cap, 1500 * (attempt + 1))
+}
+
+async function embedHfQuery(
+  text: string,
+  signal?: AbortSignal
+): Promise<{ vec: number[] | null; reason?: string; status?: number }> {
   const apiKey = hfKey()
   if (!apiKey) {
     console.warn('HF embed skipped: HUGGINGFACE_API_KEY not set')
@@ -72,8 +88,11 @@ async function embedHfQuery(text: string): Promise<{ vec: number[] | null; reaso
 
   const url = hfFeatureExtractionUrl(hfModel())
   const body = JSON.stringify({ inputs: text.slice(0, 2000) })
+  const maxAttempts = hfMaxAttempts()
 
-  for (let attempt = 0; attempt < 6; attempt++) {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (signal?.aborted) return { vec: null, reason: 'aborted' }
+
     const res = await fetch(url, {
       method: 'POST',
       headers: {
@@ -81,6 +100,7 @@ async function embedHfQuery(text: string): Promise<{ vec: number[] | null; reaso
         'Content-Type': 'application/json',
       },
       body,
+      signal,
     })
 
     if (res.ok) {
@@ -98,8 +118,8 @@ async function embedHfQuery(text: string): Promise<{ vec: number[] | null; reaso
 
     const errText = await res.text().catch(() => '')
     const loading = res.status === 503 || errText.toLowerCase().includes('loading')
-    if (loading && attempt < 5) {
-      const waitMs = Math.min(30_000, 5000 * (attempt + 1))
+    if (loading && attempt < maxAttempts - 1) {
+      const waitMs = hfRetryWaitMs(attempt)
       ragDebug('embed:retry', { status: res.status, attempt: attempt + 1, waitMs })
       await new Promise((r) => setTimeout(r, waitMs))
       continue
@@ -112,13 +132,14 @@ async function embedHfQuery(text: string): Promise<{ vec: number[] | null; reaso
   return { vec: null, reason: 'hf_retries_exhausted' }
 }
 
-async function embedHttpQuery(text: string): Promise<number[] | null> {
+async function embedHttpQuery(text: string, signal?: AbortSignal): Promise<number[] | null> {
   const base = env('EMBEDDING_SERVICE_URL')?.replace(/\/$/, '')
   if (!base) return null
   const res = await fetch(`${base}/embed`, {
     method: 'POST',
     headers: httpHeaders(),
     body: JSON.stringify({ query: text.slice(0, 4000) }),
+    signal,
   })
   if (!res.ok) return null
   const json = await res.json()
@@ -126,35 +147,59 @@ async function embedHttpQuery(text: string): Promise<number[] | null> {
   return Array.isArray(v) && v.length === EMBEDDING_DIM ? v : null
 }
 
-export async function embedQuery(text: string): Promise<number[] | null> {
+export async function embedQuery(text: string, signal?: AbortSignal): Promise<number[] | null> {
   const preview = text.trim().slice(0, 120)
-  const provider =
-    env('EMBEDDING_PROVIDER') === 'http' || (!hfKey() && env('EMBEDDING_SERVICE_URL')) ? 'http' : 'huggingface'
-  ragDebug('embed:start', { provider, model: hfModel(), queryChars: text.length, preview })
+  const httpUrl = env('EMBEDDING_SERVICE_URL')
+  const hasHf = Boolean(hfKey())
+  const preferHttp =
+    env('EMBEDDING_PROVIDER') === 'http' || (isEdgeRuntime() && Boolean(httpUrl))
+
+  ragDebug('embed:start', {
+    preferHttp,
+    hasHf,
+    hasHttp: Boolean(httpUrl),
+    model: hfModel(),
+    queryChars: text.length,
+    preview,
+  })
 
   const t0 = Date.now()
   try {
-    const useHttp = env('EMBEDDING_PROVIDER') === 'http' || (!hfKey() && env('EMBEDDING_SERVICE_URL'))
+    if (signal?.aborted) {
+      ragDebug('embed:aborted', { ms: Date.now() - t0 })
+      return null
+    }
+
+    const tryHttp = async (): Promise<number[] | null> =>
+      httpUrl ? embedHttpQuery(text, signal) : null
+    const tryHf = async (): Promise<number[] | null> => {
+      if (!hasHf) return null
+      const hf = await embedHfQuery(text, signal)
+      return hf.vec
+    }
+
     let vec: number[] | null = null
     let failReason: string | undefined
-    if (useHttp && env('EMBEDDING_SERVICE_URL')) {
-      vec = await embedHttpQuery(text)
-      if (!vec) failReason = 'http_embed_failed'
+
+    if (preferHttp) {
+      vec = await tryHttp()
+      if (!vec && hasHf) vec = await tryHf()
+      if (!vec) failReason = 'http_then_hf_failed'
     } else {
-      const hf = await embedHfQuery(text)
-      vec = hf.vec
-      failReason = hf.reason
-      if (hf.status) failReason = `${failReason ?? 'hf_error'}:${hf.status}`
+      vec = await tryHf()
+      if (!vec && httpUrl) vec = await tryHttp()
+      if (!vec) failReason = 'hf_then_http_failed'
     }
+
     if (vec) {
-      ragDebug('embed:ok', { provider, dimensions: vec.length, ms: Date.now() - t0 })
+      ragDebug('embed:ok', { dimensions: vec.length, ms: Date.now() - t0 })
     } else {
-      ragDebug('embed:empty', { provider, ms: Date.now() - t0, reason: failReason })
+      ragDebug('embed:empty', { ms: Date.now() - t0, reason: failReason })
     }
     return vec
   } catch (e) {
     console.warn('embedQuery failed:', e)
-    ragDebug('embed:error', { provider, ms: Date.now() - t0, error: String(e) })
+    ragDebug('embed:error', { ms: Date.now() - t0, error: String(e) })
     return null
   }
 }

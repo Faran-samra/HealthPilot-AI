@@ -8,9 +8,12 @@ import {
   Globe2,
   HeartPulse,
   MapPin,
+  MessageCircle,
   Navigation,
   Phone,
+  Search,
   Shield,
+  Sparkles,
   Stethoscope,
   Users,
 } from 'lucide-react'
@@ -77,6 +80,55 @@ export default function Landing() {
     { step: '5', title: t('landing.step5Title'), text: t('landing.step5Text'), icon: Phone },
   ]
 
+  const doesList = [
+    t('landing.does1'),
+    t('landing.does2'),
+    t('landing.does3'),
+    t('landing.does4'),
+  ]
+
+  const symptomSpotlight = [
+    {
+      icon: MessageCircle,
+      title: t('landing.symptomSpotlight1Title'),
+      text: t('landing.symptomSpotlight1Text'),
+    },
+    {
+      icon: Sparkles,
+      title: t('landing.symptomSpotlight2Title'),
+      text: t('landing.symptomSpotlight2Text'),
+    },
+    {
+      icon: Search,
+      title: t('landing.symptomSpotlight3Title'),
+      text: t('landing.symptomSpotlight3Text'),
+    },
+  ]
+
+  const examples = [
+    {
+      title: t('landing.example1Title'),
+      description: t('landing.example1Desc'),
+      href: '/symptom-checker',
+      icon: HeartPulse,
+      color: 'border-emerald-200/80 bg-emerald-50/50 dark:border-emerald-900/40 dark:bg-emerald-950/20',
+    },
+    {
+      title: t('landing.example2Title'),
+      description: t('landing.example2Desc'),
+      href: '/symptom-checker',
+      icon: Activity,
+      color: 'border-rose-200/80 bg-rose-50/50 dark:border-rose-900/40 dark:bg-rose-950/20',
+    },
+    {
+      title: t('landing.example3Title'),
+      description: t('landing.example3Desc'),
+      href: '/doctors',
+      icon: Stethoscope,
+      color: 'border-sky-200/80 bg-sky-50/50 dark:border-sky-900/40 dark:bg-sky-950/20',
+    },
+  ]
+
   const whoBullets = [
     t('landing.whoBullet1'),
     t('landing.whoBullet2'),
@@ -107,8 +159,13 @@ export default function Landing() {
               <span className="text-gradient-hero mt-1">{t('landing.title2')}</span>
             </h1>
 
-            <p className="mb-8 text-lg leading-relaxed text-muted-foreground text-pretty md:text-xl">
+            <p className="mb-6 text-lg leading-relaxed text-muted-foreground text-pretty md:text-xl">
               {t('landing.subtitle')}
+            </p>
+
+            <p className="mb-8 inline-flex items-center gap-2 rounded-full border bg-muted/50 px-4 py-1.5 text-sm text-muted-foreground">
+              <Shield className="size-4 shrink-0 text-primary" aria-hidden />
+              {t('landing.trustLine')}
             </p>
 
             <div className="flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
@@ -153,6 +210,23 @@ export default function Landing() {
             {t('landing.whatIsP2')}
           </p>
         </div>
+
+        <Card className="mx-auto mt-12 max-w-2xl border-emerald-200/60 bg-emerald-50/30 dark:border-emerald-900/40 dark:bg-emerald-950/15">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg text-emerald-900 dark:text-emerald-100">
+              <CheckCircle2 className="size-5" />
+              {t('landing.doesTitle')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 pt-0">
+            {doesList.map((item) => (
+              <div key={item} className="flex gap-2.5 text-sm leading-relaxed md:text-base">
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                <span>{item}</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </section>
 
       {/* Quick start */}
@@ -189,6 +263,102 @@ export default function Landing() {
                         {action.description}
                       </CardDescription>
                     </div>
+                  </CardHeader>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Symptom checker spotlight */}
+      <section className="mx-auto max-w-6xl px-4 py-16 md:py-20">
+        <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
+          <div>
+            <h2 className="text-2xl font-bold md:text-3xl">{t('landing.symptomSpotlightTitle')}</h2>
+            <p className="mt-4 text-muted-foreground md:text-lg">{t('landing.symptomSpotlightSubtitle')}</p>
+            <div className="mt-8 space-y-5">
+              {symptomSpotlight.map((item, index) => (
+                <div key={item.title} className="flex gap-4">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-sm font-bold text-primary">
+                    {index + 1}
+                  </div>
+                  <div>
+                    <h3 className="flex items-center gap-2 font-semibold">
+                      <item.icon className="size-4 text-primary" aria-hidden />
+                      {item.title}
+                    </h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground md:text-base">
+                      {item.text}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Link to="/symptom-checker" className="mt-8 inline-block">
+              <Button className="gap-2">
+                {t('landing.checkSymptoms')}
+                <ArrowRight className="size-4" />
+              </Button>
+            </Link>
+          </div>
+
+          <div className="rounded-2xl border bg-card p-5 shadow-lg ring-1 ring-border/50 md:p-6">
+            <div className="mb-4 flex items-center gap-2 border-b pb-3">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
+                <HeartPulse className="size-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">HealthPilot AI</p>
+                <p className="text-xs text-muted-foreground">Symptom checker · Private</p>
+              </div>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div className="rounded-xl bg-muted/60 px-3 py-2.5 text-muted-foreground">
+                I have sneezing and itchy eyes for a week, worse outdoors in dust…
+              </div>
+              <div className="ms-4 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2.5">
+                Have you tried any antihistamine such as cetirizine or loratadine?
+              </div>
+              <div className="rounded-xl bg-muted/60 px-3 py-2.5 text-muted-foreground">
+                No — symptoms worse in the morning and outdoors.
+              </div>
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2.5 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+                <p className="font-medium text-emerald-900 dark:text-emerald-100">
+                  Allergic rhinitis (hay fever) — mild
+                </p>
+                <p className="mt-1 text-xs text-emerald-800/90 dark:text-emerald-200/90">
+                  Recommended: ENT Specialist or GP · 3 doctors near Lahore
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Example journeys */}
+      <section className="border-y bg-muted/20 py-16 md:py-20">
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="mx-auto mb-10 max-w-2xl text-center">
+            <h2 className="text-2xl font-bold md:text-3xl">{t('landing.examplesTitle')}</h2>
+            <p className="mt-3 text-muted-foreground">{t('landing.examplesSubtitle')}</p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {examples.map((example) => (
+              <Link
+                key={example.title}
+                to={example.href}
+                className="group block rounded-2xl outline-none ring-primary/30 focus-visible:ring-2"
+              >
+                <Card className={cn('h-full transition-all group-hover:-translate-y-0.5 group-hover:shadow-md', example.color)}>
+                  <CardHeader>
+                    <div className="mb-2 flex size-10 items-center justify-center rounded-lg bg-background/80 shadow-sm">
+                      <example.icon className="size-5 text-primary" />
+                    </div>
+                    <CardTitle className="text-base leading-snug">{example.title}</CardTitle>
+                    <CardDescription className="text-sm leading-relaxed">
+                      {example.description}
+                    </CardDescription>
                   </CardHeader>
                 </Card>
               </Link>

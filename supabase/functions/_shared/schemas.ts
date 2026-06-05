@@ -1,5 +1,8 @@
 import { z } from 'npm:zod'
+import { normalizeSymptomAnalysisRaw } from './analysis-normalize.ts'
 import { SPECIALTY_SLUGS, SEVERITY_LEVELS } from './models.ts'
+
+export { normalizeSymptomAnalysisRaw } from './analysis-normalize.ts'
 
 export const SymptomAnalysisSchema = z.object({
   primary_condition: z.string().min(1).optional(),
@@ -25,7 +28,12 @@ export function parseSymptomAnalysis(raw: unknown): {
   success: false
   error: string
 } {
-  const result = SymptomAnalysisSchema.safeParse(raw)
+  const normalized = normalizeSymptomAnalysisRaw(raw)
+  if (!normalized) {
+    return { success: false, error: 'Invalid analysis payload: not an object' }
+  }
+
+  const result = SymptomAnalysisSchema.safeParse(normalized)
   if (result.success) return { success: true, data: result.data }
   return { success: false, error: result.error.message }
 }

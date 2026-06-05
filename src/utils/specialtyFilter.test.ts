@@ -28,4 +28,23 @@ describe('doctorMatchesSpecialtyFilter', () => {
       )
     ).toBe(false)
   })
+
+  it('does not match dentist when filtering ent', () => {
+    expect(
+      doctorMatchesSpecialtyFilter(
+        { specialty_slug: 'dentist', specialty: 'Dentist' },
+        'ent'
+      )
+    ).toBe(false)
+  })
+
+  it('matches ent specialist slug and label', () => {
+    expect(
+      doctorMatchesSpecialtyFilter(
+        { specialty_slug: 'ent', specialty: 'ENT Specialist' },
+        'ent'
+      )
+    ).toBe(true)
+  })
 })
+

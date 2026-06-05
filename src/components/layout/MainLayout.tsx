@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { Navbar } from './Navbar'
 import { Footer } from './Footer'
 import { EmergencyWidget } from './EmergencyWidget'
@@ -9,8 +9,10 @@ import { changeAppLanguage, type AppLanguage } from '@/i18n'
 import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime'
 
 export function MainLayout() {
+  const { pathname } = useLocation()
   const profile = useAuthStore((s) => s.profile)
   useSupabaseRealtime()
+  const hideFooter = pathname.startsWith('/symptom-checker')
 
   useEffect(() => {
     if (profile?.preferred_language) {
@@ -24,7 +26,7 @@ export function MainLayout() {
       <main className="w-full">
         <Outlet />
       </main>
-      <Footer />
+      {!hideFooter && <Footer />}
       <EmergencyWidget />
       <Toaster richColors position="top-center" />
     </div>

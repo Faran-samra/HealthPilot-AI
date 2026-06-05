@@ -1,53 +1,50 @@
 import type { NhsLocalizedCondition, NhsStructuredCondition } from './types.ts'
+import { localizeUkText } from './localize-uk.ts'
 
-const UK_TO_PK_REPLACEMENTS: [RegExp, string][] = [
-  [/\bNHS\s*111\b/gi, 'Rescue 1122 or Edhi 115'],
-  [/\b111\b(?=\s*(service|NHS))/gi, '1122'],
-  [/\bcall\s*999\b/gi, 'call Rescue 1122 or go to the nearest hospital emergency'],
-  [/\b999\b/g, '1122 (emergency)'],
-  [/\bA&E\b/g, 'hospital emergency department'],
-  [/\bA\s*&\s*E\b/g, 'hospital emergency department'],
-  [/\byour\s+GP\b/gi, 'a general physician'],
-  [/\bsee\s+a\s+GP\b/gi, 'see a general physician at a hospital OPD or clinic'],
-  [/\bGP\b/g, 'general physician'],
-  [/\bNHS\b/g, 'local healthcare services'],
-  [/\bprimary care\b/gi, 'outpatient clinic'],
-  [/\babdominal aortic aneurysm screening\b/gi, 'vascular screening (where available locally)'],
-]
+export { localizeUkText } from './localize-uk.ts'
 
-const PK_CONTEXT_TEMPLATE = `This information is adapted for users in Pakistan. For medical facts, refer to the clinical content above. For urgent care, use Rescue 1122, Edhi 115, or your nearest hospital emergency department rather than UK-specific services.`
+const PK_CONTEXT_TEMPLATE = `This information is adapted for users in Pakistan. For medical facts, see the clinical sections. For emergencies use Rescue 1122, Edhi 115, or your nearest hospital emergency department — not UK NHS services.`
 
-export function localizeUkText(text: string): string {
-  let out = text
-  for (const [pattern, replacement] of UK_TO_PK_REPLACEMENTS) {
-    out = out.replace(pattern, replacement)
-  }
-  return out.trim()
+const GENERIC_PK_EMERGENCY_LINE =
+  'In Pakistan: For life-threatening symptoms (severe pain, difficulty breathing, loss of consciousness, heavy bleeding), go to the nearest hospital emergency or call Rescue 1122 / Edhi 115 immediately. For non-emergency concerns, visit a general physician or hospital OPD.'
+
+/** True when the NHS page has condition-specific urgent/emergency content worth a dedicated chunk. */
+export function hasConditionSpecificCareGuidance(condition: NhsStructuredCondition): boolean {
+  const s = condition.sections
+  return Boolean(
+    s.urgent_care?.trim() ||
+      s.emergency_care?.trim() ||
+      (condition.when_to_seek_help_uk && condition.when_to_seek_help_uk.length > 120)
+  )
 }
 
-export function buildEmergencyAdvicePakistan(condition: NhsStructuredCondition): string {
+export function buildEmergencyAdvicePakistan(condition: NhsStructuredCondition): string | undefined {
+  if (!hasConditionSpecificCareGuidance(condition)) return undefined
+
   const parts: string[] = []
+  const raw =
+    [condition.sections.urgent_care, condition.sections.emergency_care, condition.sections.when_to_seek_help]
+      .filter(Boolean)
+      .join('\n\n') ||
+    condition.when_to_seek_help_uk ||
+    ''
 
-  if (condition.sections.when_to_seek_help || condition.when_to_seek_help_uk) {
-    const raw = condition.sections.when_to_seek_help ?? condition.when_to_seek_help_uk ?? ''
-    parts.push(localizeUkText(raw))
-  }
-
-  parts.push(
-    'In Pakistan: For life-threatening symptoms (severe pain, difficulty breathing, loss of consciousness, heavy bleeding), go to the nearest hospital emergency or call Rescue 1122 / Edhi 115 immediately. For non-emergency concerns, visit a general physician or hospital OPD.'
-  )
-
+  if (raw.trim()) parts.push(localizeUkText(raw))
+  parts.push(GENERIC_PK_EMERGENCY_LINE)
   return parts.join('\n\n')
 }
 
 export function localizeCondition(condition: NhsStructuredCondition): NhsLocalizedCondition {
   const emergency_advice_pakistan = buildEmergencyAdvicePakistan(condition)
+  const localized_pakistan_context = emergency_advice_pakistan
+    ? `${PK_CONTEXT_TEMPLATE}\n\n${emergency_advice_pakistan}`
+    : PK_CONTEXT_TEMPLATE
 
   return {
     ...condition,
     sections: { ...condition.sections },
     emergency_advice_pakistan,
-    localized_pakistan_context: `${PK_CONTEXT_TEMPLATE}\n\n${emergency_advice_pakistan}`,
+    localized_pakistan_context,
     localized_at: new Date().toISOString(),
   }
 }

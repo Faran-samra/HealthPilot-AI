@@ -9,6 +9,7 @@ export interface TracePayload {
   latencyMs: number
   status: 'ok' | 'error' | 'validation_failed'
   errorMessage?: string | null
+  routingNote?: string | null
   userId?: string | null
   sessionId?: string | null
 }
@@ -35,7 +36,10 @@ export async function logTrace(payload: TracePayload): Promise<void> {
       output_tokens: payload.outputTokens ?? null,
       latency_ms: payload.latencyMs,
       status: payload.status,
-      error_message: payload.errorMessage ?? null,
+      error_message:
+        payload.status === 'ok'
+          ? payload.routingNote ?? null
+          : payload.errorMessage ?? payload.routingNote ?? null,
       user_id: payload.userId ?? null,
       session_id: payload.sessionId ?? null,
     })

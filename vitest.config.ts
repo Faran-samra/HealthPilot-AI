@@ -9,6 +9,11 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts', 'pipeline/**/*.test.ts'],
+    include: [
+      'src/**/*.test.ts',
+      'pipeline/**/*.test.ts',
+      'supabase/functions/_shared/**/*.test.ts',
+      'supabase/functions/_shared/*.test.ts',
+    ],
   },
 })

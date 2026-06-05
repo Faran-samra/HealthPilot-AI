@@ -12,6 +12,7 @@ import type { SymptomAnalysisExtended } from '@/types/symptomChat'
 import type { CareLocation } from '@/utils/locationUtils'
 import { buildDoctorSearchUrl } from '@/utils/locationUtils'
 import { formatPKR } from '@/utils/formatters'
+import { rankDoctorsForSymptomSpecialty } from '@/utils/doctorSpecialtyRank'
 
 interface Props {
   analysis: SymptomAnalysisExtended
@@ -37,15 +38,28 @@ export function RecommendedDirectoryDoctorsPanel({
       setLoading(true)
       const loc = careLocation!
       try {
-        const results = await findNearbyDoctors({
+        const slug = analysis.recommended_specialty_slug
+        let results = await findNearbyDoctors({
           city: loc.citySlug,
-          specialty: analysis.recommended_specialty_slug,
+          specialty: slug,
           latitude: loc.latitude,
           longitude: loc.longitude,
           radiusKm: 25,
         })
+        if (!cancelled && results.length < 2 && slug === 'cardiology') {
+          const general = await findNearbyDoctors({
+            city: loc.citySlug,
+            specialty: 'general',
+            latitude: loc.latitude,
+            longitude: loc.longitude,
+            radiusKm: 25,
+          })
+          const seen = new Set(results.map((d) => d.id))
+          results = [...results, ...general.filter((d) => !seen.has(d.id))]
+        }
         if (!cancelled) {
-          setDoctors(results.slice(0, 4).map((r) => toDirectoryDoctor(r)))
+          const ranked = rankDoctorsForSymptomSpecialty(results, slug)
+          setDoctors(ranked.slice(0, 4).map((r) => toDirectoryDoctor(r)))
         }
       } catch {
         if (!cancelled) setDoctors([])

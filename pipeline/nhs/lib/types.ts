@@ -5,7 +5,13 @@ export interface NhsSections {
   diagnosis?: string
   treatment?: string
   prevention?: string
+  /** Urgent GP / 111 style advice (localized for Pakistan in chunks) */
+  urgent_care?: string
+  /** Call 999 / A&E style emergencies */
+  emergency_care?: string
   when_to_seek_help?: string
+  complications?: string
+  self_care?: string
   other?: string
 }
 
@@ -27,14 +33,21 @@ export interface NhsLocalizedCondition extends NhsStructuredCondition {
   localized_at: string
 }
 
+export type ChunkUrgency = 'emergency' | 'urgent' | 'routine'
+export type ChunkAudience = 'general' | 'adult' | 'child' | 'pregnancy'
+
 export interface MedicalChunkDraft {
   slug: string
   title: string
   content: string
+  /** Stored in DB `content`; if set, used for embedding instead of content */
+  embedding_text?: string
   source: 'nhs_uk' | 'pakistan'
   source_url?: string
   condition_slug: string
   section: string
   locale: string
   specialty_tags: string[]
+  urgency?: ChunkUrgency
+  audience?: ChunkAudience
 }
